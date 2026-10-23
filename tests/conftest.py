@@ -52,6 +52,8 @@ def isolated_settings(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterat
 
 
 def _reset_singletons() -> None:
+    from app.llm import reset_chat_model
+    from app.llm_fake import FAKE_SCRIPT
     from app.mock_api.faults import reset_fault_injector
     from app.mock_api.service import set_services
     from app.observability.metrics import metrics
@@ -59,6 +61,8 @@ def _reset_singletons() -> None:
     reset_fault_injector()
     set_services(None)
     metrics.reset()
+    reset_chat_model()
+    FAKE_SCRIPT.reset()
 
 
 @pytest.fixture
@@ -89,3 +93,11 @@ def seeded() -> None:
 @pytest.fixture
 def tool_mode() -> str:
     return get_settings().TOOL_SELECTION_MODE
+
+
+@pytest.fixture
+def fake_llm() -> Any:
+    """The shared fake-LLM script (reset before and after every test)."""
+    from tests.fixtures.fake_llm import FAKE_SCRIPT
+
+    return FAKE_SCRIPT

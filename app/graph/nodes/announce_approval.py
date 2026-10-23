@@ -1,0 +1,13 @@
+"""`announce_approval` node (skeleton; behavior added in later milestones)."""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+from typing import Any
+
+from app.graph.nodes.base import graph_node
+
+
+@graph_node("announce_approval")
+def announce_approval(state: Mapping[str, Any]) -> dict[str, Any]:
+    return {}

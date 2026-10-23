@@ -11,7 +11,7 @@ Each milestone commit is tagged `checkpoint_mN`. A commit cannot contain its own
 |---|---|---|---|---|---|
 | M0: Scaffold | ✅ Passed | 15 / 15 | 98.0% / 98.0% | `7d9ce56` | `checkpoint_m0` |
 | M1: Mock backend + tools | ✅ Passed | 80 / 80 | 97.7% / 97.7% | `c9cbbb1` | `checkpoint_m1` |
-| M2: State + graph skeleton | ⏳ Not started | | | | |
+| M2: State + graph skeleton | ✅ Passed | 276 / 276 | 96.2% / 96.2% | _pending_ | `checkpoint_m2` |
 | M3: Understanding + slots + verification | ⏳ Not started | | | | |
 | M4: Claim + cancellation + confirmation | ⏳ Not started | | | | |
 | M5: Human-in-the-loop | ⏳ Not started | | | | |
@@ -37,3 +37,17 @@ Each milestone commit is tagged `checkpoint_mN`. A commit cannot contain its own
   - Faults: every magic ID (999500/999408/999501/999502), `MOCK_FAULT_CLEAR_AFTER`, `MOCK_FAULT_LOOKUP`, seeded random faults scoped by `MOCK_FAULT_TOOLS`, and latency.
   - Retry wrapper: at most 3 attempts, a 0.5 s / 1 s backoff, a real timeout, and no retries for business errors.
   - Other: the lookup returns no DOB or name; `ToolNode` runs the read tools and rejects write tools.
+
+## M2: State + graph skeleton
+- **Exit criteria (PRD §12):** routing unit tests pass; the graph compiles; `support graph draw` outputs Mermaid.
+- **Result:**
+  - **Routing tests:** `tests/unit/test_routing.py` covers every branch of `route_entry`, `route_intent` (including read-retry precedence), each `route_slots` step 1–10 with its precedence conflicts, every `route_after_tool` row, `route_confirm`, `route_approval`, `route_write`, `route_pending_question`, `route_error` and `route_next_task`.
+  - **Graph tests:** the graph compiles and runs on `SqliteSaver`, and its state survives a reopened connection. FR3 (unknown key → error) and the schema-equals-PRD check are tested.
+  - **Tool-call tests:**
+    - NFR4: no write tool is bindable for any intent/phase.
+    - Deterministic `AIMessage` synthesis.
+    - `validate_tool_call` keeps the same id, replaces rejected calls, and overwrites arguments (including an injection attempt).
+    - `plan_tool` in both modes, including LLM-failure fallback.
+  - **Other tests:** the LLM gateway (repair, fallback, cap, tokens, redaction).
+  - **Draw:** `support graph draw` writes `docs/graph.md`.
+  - Nodes beyond `ingest`, `plan_tool` and `validate_tool_call` are still stubs at this checkpoint, as the milestone specifies.

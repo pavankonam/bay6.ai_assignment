@@ -138,3 +138,72 @@ Choices the PRD (`docs/PRD.md`) does not dictate: library versions, ambiguities,
 ### D-020 Own Prometheus text renderer instead of `prometheus_client`
 - **Decision:** `app/observability/metrics.py` is a ~60-line, thread-safe counter registry with a text-exposition `render()`.
 - **Why:** NFR17 only needs counters. This avoids a dependency and its global registry, which complicates resetting between tests.
+
+---
+
+## M2: State + graph skeleton
+
+### D-021 Per-turn interpretation lives on the turn's `HumanMessage`, not in new state keys
+- **Context:** FR3 says the state must follow `SupportState` **exactly**. But several node → router hand-offs need this turn's interpretation:
+  - `understand` → `validate_slots` / `route_intent` (candidates, dates, confidence),
+  - `handle_confirmation` → `route_confirm` (decision, slot changes),
+  - `handle_pending_question` → `route_pending_question` (answer),
+  - "the slot the agent last asked for" (FR12a step 2).
+  
+  None of these has a key in the schema.
+- **Decision:**
+  - The node replaces the latest `HumanMessage` (same `id`, so `add_messages` updates it in place) with extra `additional_kwargs`: `nlu`, `confirmation` or `pending_answer`.
+  - `ask_for_info` stores `asked_slots` on its own `AIMessage`.
+  - Routers read these through `app/graph/messages.annotation()`.
+- **Why:** The schema stays exactly as specified, and routing remains a pure function of state. The annotations are checkpointed with the message, which gives an audit trail of how each message was interpreted. They are never returned to customers (only `content` is) and never sent to the LLM.
+
+### D-022 The fake LLM is a real `BaseChatModel` inside `app/`
+- **Context:** §8.10 says `get_chat_model()` returns `FakeScriptedChatModel` when `LLM_PROVIDER=fake`. The no-API-key README demo needs the fake at runtime, not only in tests.
+- **Decision:**
+  - `app/llm_fake.py` implements `FakeScriptedChatModel(BaseChatModel)` with `bind_tools` support, so `with_structured_output` and `bind_tools` follow the same code path as `ChatAnthropic`.
+  - Each prompt file starts with `<!-- prompt: name -->`, and the fake uses that header to identify the call.
+  - Tests script responses with `FAKE_SCRIPT.push(kind, ...)`. A response can be a model, a dict, text, an `AIMessage` or an exception to raise. Unscripted calls go to rule-based heuristics (`app/nlu/fake_heuristics.py`).
+  - Every request is recorded, which is used for the NFR2 call counts and the NFR8a payload checks.
+  - `tests/fixtures/fake_llm.py` re-exports the helpers.
+- **Why:** One code path for the real and fake models, a demo that works without a key, and assertions on exactly what would be sent to a vendor.
+
+### D-023 `route_slots` step 5 for `policy_status`
+- **Context:** Step 5 is "policy_snapshot not loaded → lookup". For a status request, a snapshot cached by another task would let the flow fall through to step 10 (`prepare_action`), but there's no action to prepare for a status check.
+- **Decision:** For `active_intent == "policy_status"`, step 5 always routes to `plan_tool` (lookup). `route_after_tool` then sends the fresh result to `respond`.
+- **Why:** A status answer should reflect current data, and this makes the status path impossible to misroute.
+
+### D-024 Extra routing branches not drawn in the §8.3 diagram
+- **Decision:**
+  1. `route_intent` → `escalate` when the confidence is low (or a date is ambiguous) and the intent-clarification counter (`clarification_attempts["_intent"]`) has reached `MAX_CLARIFICATION_ATTEMPTS`. This implements §9.1 "Gibberish → … after 3 tries → escalate".
+  2. `route_pending_question` → `escalate` when a `retry_write` withdrawal leaves `last_outcome = WRITE_OUTCOME_UNKNOWN` (FR47a). The diagram sends this through `handle_error`; going directly is equivalent and avoids building a fake error.
+  3. `route_error` escalates any **non-retryable** error, not only those flagged `internal`.
+- **Why:** These implement written requirements that the diagram doesn't show explicitly. Every branch has a unit test.
+
+### D-025 The tool phase is computed, not trusted from `state.phase`
+- **Decision:** `app/graph/phases.tool_phase(state)` (verify → lookup → quote) is a pure function of the slots and verification state. `plan_tool`, `validate_tool_call` and `validate_slots` all use it, and `validate_slots` still writes `phase` for observability.
+- **Why:** The allowlist must be applied to the real phase. A stale `phase` value can never unlock a tool.
+
+### D-026 LLM call wrapper details
+- **Decision:**
+  - The repair retry (§9.3, "1 repair") re-invokes with a short, code-written hint appended to the system prompt, and counts as a second call.
+  - The context block in the system prompt contains only code-derived values (intent, phase, slot names, ISO dates), never raw customer text (NFR5).
+  - History is the last 6 customer-visible messages, trimmed from the oldest to fit `LLM_HISTORY_MAX_CHARS`, and always starts with a user message.
+  - An exception, an invalid output after the repair, an empty text reply, a missing tool call, or the per-thread cap all return `value=None`. The node then applies the FR48 rule-based fallback and `llm_fallbacks_total` is incremented.
+- **Why:** This bounds calls per turn (NFR2), keeps prompt injection out of the system role, and gives one consistent fallback signal.
+
+### D-027 `ToolNode` requires the graph runtime in `langgraph-prebuilt==1.1.1`
+- **Context:** Calling `ToolNode.invoke` outside a graph raises `Missing required config key 'N/A'` in this version.
+- **Decision:** Tests exercise `ToolNode` inside a minimal compiled graph.
+- **Why:** This was verified against the installed package (rule 4).
+
+### D-028 Node function typing
+- **Decision:** Node functions take `Mapping[str, Any]` and return `dict[str, Any]`. `graph_node(name)` raises `StateSchemaError` on unknown keys (FR3) and logs the node. The builder casts the node callables at the `add_node` boundary.
+- **Why:** LangGraph's `add_node` overloads expect the TypedDict input type. A cast at the one wiring point keeps mypy strict everywhere else.
+
+### D-029 `app/nlu/` package
+- **Decision:** `app/nlu/` holds `schemas.py` (`UnderstandResult`, `ConfirmationResult`, `YesNoResult`), `redaction.py` (NFR8a) and the rule-based NLU used both by the FR48 fallback and by the fake model's heuristics.
+- **Why:** Language-understanding code is shared by several nodes and the fake model, so it has its own package.
+
+### D-030 `ingest` initializes the defaults
+- **Decision:** `ingest` fills in any missing state key with its default (empty slots, `verified=False`, counters at 0, …). Existing values are never overwritten.
+- **Why:** Every downstream node can rely on a fully populated state without defensive defaults.
