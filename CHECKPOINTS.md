@@ -19,7 +19,7 @@ Each milestone commit is tagged `checkpoint_mN`. A commit cannot contain its own
 | M7: API + CLI | ✅ Passed | 656 / 656 | 96.3% / 96.3% | `c9d8bd7` | `checkpoint_m7` |
 | M8: Docs (core sign-off) | ✅ Passed | 657 / 657 | 96.3% / 96.3% | `2ddc749` | `checkpoint_m8` |
 | M9: Hardening | ✅ Passed | 671 / 671 | 96.5% / 96.5% | `2088af5` | `checkpoint_m9` |
-| M10: Evaluation | ⚠️ Blocked: real-LLM run needs `ANTHROPIC_API_KEY` | 684 / 684 | 96.5% / 96.5% | _pending_ | — (not tagged) |
+| M10: Evaluation | ⚠️ Blocked: real-LLM run needs `ANTHROPIC_API_KEY` | 684 / 684 | 96.5% / 96.5% | `22b1ebc` | — (not tagged) |
 
 ## M0: Scaffold
 - **Exit criteria (PRD §12):** `make lint test` passes on an empty test suite; seed loads.
