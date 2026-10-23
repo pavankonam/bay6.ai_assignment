@@ -1,0 +1,25 @@
+id: claim-14
+intent: report_claim
+category: happy
+description: Single-vehicle incident 3 days ago
+turns:
+- user: I slid on ice and hit a guardrail 3 days ago on I-80 near exit 12.
+  expect_intent: report_claim
+- user: POL-100001, born 4/12/1985
+  expect_intent: provide_info
+- user: No, nobody was hurt and no other vehicle was involved
+  expect_intent: provide_info
+- user: $3,200, no report
+  expect_intent: provide_info
+- user: 'yes'
+expect:
+  outcome: CLAIM_CREATED
+  write:
+    tool: create_claim
+    args:
+      policy_id: POL-100001
+      incident_date: '2026-10-19'
+      injuries: false
+      other_party_involved: false
+      estimated_damage_usd: 3200
+  max_turns: 7

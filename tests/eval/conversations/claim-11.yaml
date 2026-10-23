@@ -1,0 +1,27 @@
+id: claim-11
+intent: report_claim
+category: happy
+description: Duplicate claim → customer files anyway
+turns:
+- user: I need to file a claim, my car was hit on 10/15.
+  expect_intent: report_claim
+- user: POL-100006, born 2/28/1970
+  expect_intent: provide_info
+- user: 'yes'
+- user: It was at Oak Rd & 3rd St, someone side-swiped me while I was parked
+  expect_intent: provide_info
+- user: no injuries, yes another car
+  expect_intent: provide_info
+- user: $1,800, no report
+  expect_intent: provide_info
+- user: 'yes'
+expect:
+  outcome: CLAIM_CREATED
+  write:
+    tool: create_claim
+    args:
+      policy_id: POL-100006
+      incident_date: '2026-10-15'
+      estimated_damage_usd: 1800
+    allow_duplicate: true
+  max_turns: 7

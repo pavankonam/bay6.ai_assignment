@@ -1,0 +1,24 @@
+id: cancel-14
+intent: cancel_policy
+category: happy
+description: '''Other'' reason'
+turns:
+- user: I want to cancel.
+  expect_intent: cancel_policy
+- user: POL-100004, born 11/3/1995
+  expect_intent: provide_info
+- user: Nov 15, other reasons
+  expect_intent: provide_info
+- user: 'yes'
+- review:
+    decision: approve
+    comment: Verified, processed.
+expect:
+  outcome: CANCEL_COMPLETED
+  write:
+    tool: cancel_policy
+    args:
+      policy_id: POL-100004
+      effective_date: '2026-11-15'
+      reason: other
+  max_turns: 5

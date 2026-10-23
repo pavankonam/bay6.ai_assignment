@@ -1,0 +1,35 @@
+id: cancel-01
+intent: cancel_policy
+category: happy
+description: Flow C
+turns:
+- user: I want to cancel my insurance.
+  expect_intent: cancel_policy
+- user: POL-100001 / 04/12/1985
+  expect_intent: provide_info
+- user: Nov 1, switching provider
+  expect_intent: provide_info
+- user: 'yes'
+- review:
+    decision: approve
+    comment: Verified, processed.
+expect:
+  outcome: CANCEL_COMPLETED
+  slots:
+    policy_id: POL-100001
+    dob: '1985-04-12'
+    effective_date: '2026-11-01'
+    reason: switching_provider
+  tools:
+  - verify_policyholder
+  - get_policy_status
+  - get_cancellation_quote
+  write:
+    tool: cancel_policy
+    args:
+      policy_id: POL-100001
+      effective_date: '2026-11-01'
+      reason: switching_provider
+  max_turns: 5
+  text_contains:
+  - $175.55

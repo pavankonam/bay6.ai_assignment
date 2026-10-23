@@ -289,3 +289,18 @@ def test_mention_to_dict() -> None:
         "value": "1985-04-12",
         "error": None,
     }
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "actually the accident was on the 20th, not yesterday",
+        "it happened on the 20th instead of yesterday",
+        "the crash was 10/20 rather than 10/21",
+    ],
+)
+def test_negated_dates_are_not_candidates(text: str) -> None:
+    assignment = extract_dates(text, today=TODAY)
+    assert assignment.ambiguity is None
+    assert [m.text for m in assignment.mentions] == [assignment.mentions[0].text]
+    assert assignment.by_role()["incident_date"].value == date(2026, 10, 20)

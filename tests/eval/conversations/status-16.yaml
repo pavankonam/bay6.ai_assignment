@@ -1,0 +1,22 @@
+id: status-16
+intent: policy_status
+category: edge
+description: Invalid policy format gets specific feedback
+turns:
+- user: is my policy active?
+  expect_intent: policy_status
+- user: my policy number is 12345 and I was born 4/12/1985
+  expect_intent: provide_info
+- user: oh sorry, it's POL-100001, born 4/12/1985
+  expect_intent: provide_info
+expect:
+  outcome: STATUS_PROVIDED
+  slots:
+    policy_id: POL-100001
+    dob: '1985-04-12'
+  tools:
+  - verify_policyholder
+  - get_policy_status
+  write: null
+  text_contains:
+  - POL-123456

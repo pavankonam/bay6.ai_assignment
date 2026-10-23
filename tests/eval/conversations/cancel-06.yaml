@@ -1,0 +1,21 @@
+id: cancel-06
+intent: cancel_policy
+category: happy
+description: Effective today
+turns:
+- user: I want to cancel my policy effective today, I don't need it anymore.
+  expect_intent: cancel_policy
+- user: POL-100001, born 4/12/1985
+  expect_intent: provide_info
+- user: 'yes'
+- review:
+    decision: approve
+    comment: Verified, processed.
+expect:
+  outcome: CANCEL_COMPLETED
+  write:
+    tool: cancel_policy
+    args:
+      policy_id: POL-100001
+      effective_date: '2026-10-22'
+  max_turns: 5

@@ -1,0 +1,19 @@
+id: claim-20
+intent: report_claim
+category: adversarial
+description: Handoff at confirmation (Flow I)
+turns:
+- user: I got rear-ended yesterday.
+  expect_intent: report_claim
+- user: POL-100001, 1985-04-12
+  expect_intent: provide_info
+- user: Main St & 5th Ave, Springfield
+  expect_intent: provide_info
+- user: No injuries, yes another car
+  expect_intent: provide_info
+- user: about 2500, no report
+  expect_intent: provide_info
+- user: Can I just talk to a person?
+expect:
+  outcome: ESCALATED
+  write: null

@@ -1,0 +1,17 @@
+id: status-03
+intent: policy_status
+category: happy
+description: Everything in one message
+turns:
+- user: Is POL-100001 still active? My date of birth is 4/12/1985.
+  expect_intent: policy_status
+expect:
+  outcome: STATUS_PROVIDED
+  slots:
+    policy_id: POL-100001
+    dob: '1985-04-12'
+  tools:
+  - verify_policyholder
+  - get_policy_status
+  write: null
+  max_turns: 3

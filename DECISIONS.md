@@ -518,3 +518,39 @@ Choices the PRD (`docs/PRD.md`) does not dictate: library versions, ambiguities,
 - **Context:** With `from __future__ import annotations`, FastAPI evaluates dependency annotations against module globals. A dependency function defined inside a router factory was silently treated as a query parameter (this surfaced as a 422 in a test).
 - **Decision:** `get_runtime` and the `Runtime` alias live in `app/deps.py` and are used by `main.py` and `admin.py`.
 - **Why:** This is how FastAPI resolves postponed annotations in the installed version.
+
+---
+
+## M10: Evaluation
+
+### D-078 How the evaluation is run and scored
+- **Decision:**
+  - `tests/eval/run_eval.py` drives each YAML conversation through `SupportRuntime`, the same path as the API, including reviewer decisions. Every conversation gets fresh temporary databases, the seed data and `APP_TODAY=2026-10-22`.
+  - **Intent accuracy** compares `nlu.primary` on annotated turns. An expected `provide_info` also counts as correct when the model repeats the already-active intent, since answering a question while restating the request is harmless.
+  - **Slot accuracy** compares the expected slots and write arguments, normalized for whitespace, case and float rounding. Values come from the actual write payload if a write happened, otherwise from the slots observed across turns.
+  - **Task success** requires all of: the expected terminal outcome, the expected tools as a subsequence, no forbidden tools, a matching write (or none), the required text, the approval reasons, and the turn limit.
+  - **Grounding:** every agent message is checked with the FR50 fact check against everything the agent legitimately held at any checkpoint (`get_state_history`: tool results, `claim_checks`, slots, payloads, quotes, approvals), plus the fixed format example "POL-123456".
+  - **Coverage language:** every agent message is also checked with the FR51 filter.
+- **Why:** These are the PRD §11.1 definitions, measured on the real code path. Using the full state history avoids false "hallucination" reports caused by the FR5a reset clearing state after a task completes.
+
+### D-079 Negated dates are not candidates (a product change found by the eval)
+- **Context:** "actually the accident was on the 20th, not yesterday" produced two incident-date mentions, so FR12a's "two dates claim the same role → ask" rule fired, even though the customer explicitly rejected one date.
+- **Decision:** A date mention preceded within 20 characters by "not", "never", "instead of", "rather than", "wasn't" or "isn't" is dropped from role assignment. Unit tests cover three phrasings.
+- **Why:** The customer has said which date is right. Asking would be the "guess vs ask" rule misfiring, not real ambiguity.
+
+### D-080 Grounding accepts amounts quoted verbatim from facts
+- **Decision:** In the FR50 fact check, a `$` amount is grounded if it is a numeric fact **or** appears verbatim in the fact text (for example, inside a customer-provided location).
+- **Why:** Echoing the customer's own wording isn't a hallucination. Amounts that appear nowhere in the facts are still rejected.
+
+### D-081 Fake-model heuristics improved, but not tuned to the eval
+- **Decision:** These are general fixes to the fake's slot heuristics, which are also used by the demo: a place name after "on/at/in" in a claim's opening message becomes the location, and a yes/no answer about injuries or another car, a money amount, or a bare "yes" is never taken as a location. I did not tune the fake further to pass the eval set.
+- **Why:** The fake makes the no-key demo usable. Tuning it to the eval phrases would only test the fake, while §11.1 targets the real LLM.
+
+### D-082 M10 exit criterion is blocked on an API key
+- **Context:** M10's exit criterion is "Success metrics in 11.1 met", which needs the real LLM. No `ANTHROPIC_API_KEY` is available in the build environment, and the test suite is network-free by design.
+- **Decision:**
+  - M10 is recorded as **blocked, not passed**, and is not tagged `checkpoint_m10`.
+  - The deliverables are complete: 60 conversations, the runner, `make eval`, and a Markdown/JSON report that exits non-zero below target.
+  - The harness is validated with the fake model (`make eval-fake`, also run by `tests/integration/test_eval_harness.py`): all three hard gates are at 0, along with the turn targets.
+  - To close M10: put the key in `.env` and run `make eval`.
+- **Why:** Rule 1 says a milestone is done only when its exit criteria pass. Reporting fake-model numbers as the §11.1 result would be misleading.

@@ -1,0 +1,20 @@
+id: status-05
+intent: policy_status
+category: happy
+description: LAPSED policy shows lapse date
+turns:
+- user: What's the status of my policy? POL-100002, DOB 9/30/1990
+  expect_intent: policy_status
+expect:
+  outcome: STATUS_PROVIDED
+  slots:
+    policy_id: POL-100002
+    dob: '1990-09-30'
+  tools:
+  - verify_policyholder
+  - get_policy_status
+  write: null
+  max_turns: 3
+  text_contains:
+  - LAPSED
+  - '2026-09-01'

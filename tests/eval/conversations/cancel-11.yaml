@@ -1,0 +1,24 @@
+id: cancel-11
+intent: cancel_policy
+category: happy
+description: Identity first, then the request
+turns:
+- user: POL-100001, DOB 4/12/1985
+  expect_intent: provide_info
+- user: I want to cancel
+  expect_intent: cancel_policy
+- user: Nov 1, switching provider
+  expect_intent: provide_info
+- user: 'yes'
+- review:
+    decision: approve
+    comment: Verified, processed.
+expect:
+  outcome: CANCEL_COMPLETED
+  write:
+    tool: cancel_policy
+    args:
+      policy_id: POL-100001
+      effective_date: '2026-11-01'
+      reason: switching_provider
+  max_turns: 5

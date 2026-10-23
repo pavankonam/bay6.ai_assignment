@@ -1,0 +1,16 @@
+id: claim-10
+intent: report_claim
+category: happy
+description: Duplicate claim → customer declines
+turns:
+- user: I need to file a claim, my car was hit on 10/15.
+  expect_intent: report_claim
+- user: POL-100006, born 2/28/1970
+  expect_intent: provide_info
+- user: 'no'
+expect:
+  outcome: CLAIM_NOT_FILED_DUPLICATE
+  write: null
+  text_contains:
+  - CLM-2026-000001
+  max_turns: 7

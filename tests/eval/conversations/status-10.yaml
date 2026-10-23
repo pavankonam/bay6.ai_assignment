@@ -1,0 +1,17 @@
+id: status-10
+intent: policy_status
+category: happy
+description: Two-digit year DOB
+turns:
+- user: 'status check please: POL-100001, dob 4/12/85'
+  expect_intent: policy_status
+expect:
+  outcome: STATUS_PROVIDED
+  slots:
+    policy_id: POL-100001
+    dob: '1985-04-12'
+  tools:
+  - verify_policyholder
+  - get_policy_status
+  write: null
+  max_turns: 3

@@ -1,0 +1,30 @@
+id: claim-05
+intent: report_claim
+category: happy
+description: High damage → reviewer approves
+turns:
+- user: Someone T-boned me yesterday at Pine Ave & 2nd St.
+  expect_intent: report_claim
+- user: POL-100001, born 4/12/1985
+  expect_intent: provide_info
+- user: nobody injured, and yes another car
+  expect_intent: provide_info
+- user: the shop says about $15,000, report number SPD-7781
+  expect_intent: provide_info
+- user: 'yes'
+- review:
+    decision: approve
+    comment: Verified, processed.
+expect:
+  outcome: CLAIM_CREATED
+  write:
+    tool: create_claim
+    args:
+      policy_id: POL-100001
+      incident_date: '2026-10-21'
+      injuries: false
+      estimated_damage_usd: 15000
+      police_report_number: SPD-7781
+  approval_reasons:
+  - high_damage_estimate
+  max_turns: 7

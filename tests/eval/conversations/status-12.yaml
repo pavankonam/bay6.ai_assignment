@@ -1,0 +1,21 @@
+id: status-12
+intent: policy_status
+category: happy
+description: Deductibles question
+turns:
+- user: What are my deductibles?
+  expect_intent: policy_status
+- user: POL-100001 / 04/12/1985
+  expect_intent: provide_info
+expect:
+  outcome: STATUS_PROVIDED
+  slots:
+    policy_id: POL-100001
+    dob: '1985-04-12'
+  tools:
+  - verify_policyholder
+  - get_policy_status
+  write: null
+  max_turns: 3
+  text_contains:
+  - $500

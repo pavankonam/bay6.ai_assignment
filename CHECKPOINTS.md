@@ -19,7 +19,7 @@ Each milestone commit is tagged `checkpoint_mN`. A commit cannot contain its own
 | M7: API + CLI | ✅ Passed | 656 / 656 | 96.3% / 96.3% | `c9d8bd7` | `checkpoint_m7` |
 | M8: Docs (core sign-off) | ✅ Passed | 657 / 657 | 96.3% / 96.3% | `2ddc749` | `checkpoint_m8` |
 | M9: Hardening | ✅ Passed | 671 / 671 | 96.5% / 96.5% | `2088af5` | `checkpoint_m9` |
-| M10: Evaluation | ⏳ Not started | | | | |
+| M10: Evaluation | ⚠️ Blocked: real-LLM run needs `ANTHROPIC_API_KEY` | 684 / 684 | 96.5% / 96.5% | _pending_ | — (not tagged) |
 
 ## M0: Scaffold
 - **Exit criteria (PRD §12):** `make lint test` passes on an empty test suite; seed loads.
@@ -161,3 +161,26 @@ Each milestone commit is tagged `checkpoint_mN`. A commit cannot contain its own
       - Reconciliation repairs a stuck interrupt and expires and resumes a stale approval.
     - **NFR10:** the purge removes the thread from both DBs (rows, and no raw DOB bytes left in `checkpoints.db`), skips a thread with a pending approval, keeps the business records, and trims old verification failures.
   - **CLI tests:** `support approvals reconcile`, `support policy unlock` and `support purge` against the live API.
+
+## M10: Evaluation — ⚠️ blocked on an API key
+- **Exit criteria (PRD §12):** the success metrics in §11.1 are met. These are measured with the **real LLM**.
+- **Status:** Not verifiable in this environment, because no `ANTHROPIC_API_KEY` is available. **Not tagged.**
+- **Done:**
+  - **The conversation set:** 60 conversations in `tests/eval/conversations/*.yaml`, 20 per request, of which 15 are edge/adversarial (injection, someone else's policy, coverage questions, future/old dates, ineligible policies, handoff, windows).
+  - **The runner:** `make eval` (`tests/eval/run_eval.py`) produces `reports/eval.md` and `.json` with every §11.1 metric, exits 1 below target, and exits 2 without a key.
+  - **Tests:** `tests/integration/test_eval_harness.py` checks the set's shape, the summary gates, the no-key refusal, and a fake dry run with hard gates at 0.
+- **Harness validation** with the fake rule-based model (`make eval-fake`; these are *not* the M10 result):
+
+  | Metric | Fake model | §11.1 target |
+  |---|---|---|
+  | Unauthorized writes | 0 | 0 |
+  | Ungrounded responses | 0 | 0 |
+  | Coverage-language responses | 0 | 0 |
+  | Average turns (status / claim / cancel) | 1.8 / 5.4 / 3.73 | ≤ 3 / ≤ 7 / ≤ 5 |
+  | Intent accuracy | 94.7% | ≥ 95% (real LLM) |
+  | Slot accuracy | 93.4% | ≥ 95% (real LLM) |
+  | Task success | 80.0% | ≥ 90% (real LLM) |
+
+  The accuracy misses are the keyword fake's vocabulary ("T-boned", "insured with you guys", "premium paid through").
+- **Product fix found by the eval:** negated dates ("the 20th, not yesterday") no longer trigger a false ambiguity (D-079).
+- **To close M10:** `cp .env.example .env`, set `ANTHROPIC_API_KEY`, run `make eval`, and confirm `reports/eval.md` shows PASS.

@@ -1,0 +1,23 @@
+id: claim-06
+intent: report_claim
+category: happy
+description: Skipped estimate → reviewer rejects
+turns:
+- user: A tree branch fell on my car yesterday during the storm, in my driveway at 12 Birch Lane.
+  expect_intent: report_claim
+- user: POL-100001, born 4/12/1985
+  expect_intent: provide_info
+- user: no injuries and no other party
+  expect_intent: provide_info
+- user: skip
+  expect_intent: provide_info
+- user: 'yes'
+- review:
+    decision: reject
+    comment: Please call us for an inspection.
+expect:
+  outcome: CLAIM_REJECTED
+  write: null
+  approval_reasons:
+  - damage_estimate_unknown
+  max_turns: 7

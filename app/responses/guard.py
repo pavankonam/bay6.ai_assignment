@@ -70,8 +70,12 @@ def facts_supported(text: str, facts: Mapping[str, Any]) -> bool:
     if any(d not in blob for d in dates):
         return False
     numbers = _fact_numbers(values)
-    amounts = (round(float(raw.replace(",", "")), 2) for raw in MONEY_RE.findall(text))
-    return all(amount in numbers for amount in amounts)
+    for match in MONEY_RE.finditer(text):
+        amount = round(float(match.group(1).replace(",", "")), 2)
+        # Grounded if it is a numeric fact, or appears verbatim in fact text (customer wording).
+        if amount not in numbers and match.group(0) not in blob:
+            return False
+    return True
 
 
 def coverage_language(text: str) -> bool:

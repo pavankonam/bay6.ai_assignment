@@ -1,0 +1,12 @@
+id: claim-18
+intent: report_claim
+category: edge
+description: Policy not in force on the incident date
+turns:
+- user: My car got hit on 10/01. POL-100002, dob 9/30/1990
+  expect_intent: report_claim
+expect:
+  outcome: CLAIM_INELIGIBLE
+  write: null
+  text_contains:
+  - wasn't in force

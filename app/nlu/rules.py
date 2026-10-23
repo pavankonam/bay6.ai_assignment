@@ -91,6 +91,12 @@ YES_RE = re.compile(r"^\s*(yes|yeah|yep|y|yup|sure|correct|right|there was|i was
 NO_RE = re.compile(r"^\s*(no|nope|n|nah|not)\b", re.IGNORECASE)
 GIBBERISH_RE = re.compile(r"^[^aeiouy\s]{6,}$|^[\W\d_]+$", re.IGNORECASE)
 _SEGMENT_RE = re.compile(r"[,;.]|\band\b|\bbut\b", re.IGNORECASE)
+# A capitalized place after "on/at/in" ("on Elm Street", "at Main St & 5th Ave", "on I-80 near
+# exit 12"). Used only by the fake model's heuristics for opening messages.
+_PLACE_RE = re.compile(
+    r"\b(?:on|at|in)\s+((?:the\s+)?(?:[A-Z][\w.'-]*|I-\d+|Route\s+\d+|Highway\s+\d+)"
+    r"(?:\s+(?:&|and|near|exit|of|on|[A-Z0-9][\w.'-]*|\d+(?:st|nd|rd|th)?))*)"
+)
 _LOCATION_PREFIX_RE = re.compile(r"^(it (was|happened) |this was )?(at|on|near|in)\s+", re.I)
 
 # FR29: bare replies (whole trimmed message, ignoring case and trailing punctuation).
@@ -201,7 +207,18 @@ def heuristic_task_slots(text: str, ctx: RuleContext, intent: str | None) -> dic
     asked = set(ctx.asked_slots)
     slots: dict[str, Any] = {}
     if intent == "report_claim":
-        if "incident_location" in asked and not is_skip(text):
+        looks_like_bool_answer = bool(
+            (INJURY_RE.search(text) or EXPLICIT_PARTY_RE.search(text))
+            and (YES_RE.search(text) or NEGATION_RE.search(text))
+        )
+        looks_like_amount = bool(AMOUNT_IN_TEXT_RE.search(text) or BARE_NUMBER_RE.match(text))
+        if (
+            "incident_location" in asked
+            and not is_skip(text)
+            and not looks_like_bool_answer
+            and not looks_like_amount
+            and bare_yes_no(text) is None
+        ):
             location = _LOCATION_PREFIX_RE.sub("", text.strip()).rstrip(".")
             if "incident_description" in asked and " - " in location:
                 location, description = location.split(" - ", 1)
@@ -212,9 +229,12 @@ def heuristic_task_slots(text: str, ctx: RuleContext, intent: str | None) -> dic
         elif (
             ctx.active_intent != "report_claim"
             and CLAIM_RE.search(text)
-            and not re.search(r"\bPOL\b|\[DOB\]|\d", text, re.IGNORECASE)
+            and not re.search(r"\bPOL\b|\[DOB\]", text, re.IGNORECASE)
         ):
             slots["incident_description"] = text.strip().rstrip(".")
+            place = _PLACE_RE.search(text)
+            if place:
+                slots["incident_location"] = place.group(1).strip().rstrip(".,")
         slots.update(_bool_answers(text, asked))
         amount = _amount(text, asked)
         if amount is not None:

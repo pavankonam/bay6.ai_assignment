@@ -379,3 +379,24 @@ def test_redact_keeps_other_dates_and_policy() -> None:
     assert redact_dob("DOB 4/12/85; the accident was 10/20") == (
         "DOB [DOB]; the accident was 10/20"
     )
+
+
+@pytest.mark.parametrize(
+    ("text", "location"),
+    [
+        ("My car was hit last Tuesday while it was parked on Elm Street.", "Elm Street"),
+        ("I slid on ice and hit a guardrail 3 days ago on I-80 near exit 12.", "I-80 near exit 12"),
+        ("I got rear-ended yesterday at Main St & 5th Ave.", "Main St & 5th Ave"),
+        ("I got rear-ended yesterday.", None),
+    ],
+)
+def test_fake_heuristic_place_from_opening(text: str, location: str | None) -> None:
+    result = rules.rule_understand(text, rules.RuleContext(), strict=False)
+    assert result.task_slots["report_claim"].get("incident_location") == location
+
+
+def test_fake_heuristic_does_not_take_answers_as_location() -> None:
+    ctx = rules.RuleContext(active_intent="report_claim", asked_slots=["incident_location"])
+    for text in ("yes", "$2.5k, no police report", "no one was hurt, and yes, another car"):
+        slots = rules.rule_understand(text, ctx, strict=False).task_slots.get("report_claim", {})
+        assert "incident_location" not in slots, text

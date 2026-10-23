@@ -1,0 +1,23 @@
+id: cancel-15
+intent: cancel_policy
+category: happy
+description: Multi-intent message (FR10 queue)
+turns:
+- user: check my status and cancel it November 1 because I'm switching providers
+  expect_intent: policy_status
+- user: POL-100001, born 4/12/1985
+  expect_intent: provide_info
+- user: 'yes'
+- user: 'yes'
+- review:
+    decision: approve
+    comment: Verified, processed.
+expect:
+  outcome: CANCEL_COMPLETED
+  write:
+    tool: cancel_policy
+    args:
+      policy_id: POL-100001
+      effective_date: '2026-11-01'
+      reason: switching_provider
+  max_turns: 5

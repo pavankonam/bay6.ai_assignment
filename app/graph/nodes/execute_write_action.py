@@ -89,6 +89,8 @@ def audit_messages(action: Mapping[str, Any], result: ToolResult) -> list[Any]:
         "idempotency_key": action.get("idempotency_key"),
         "approval_id": action.get("approval_id"),
     }
+    if name == "create_claim":
+        args["allow_duplicate"] = bool(action.get("allow_duplicate"))
     return [
         AIMessage(
             content="",

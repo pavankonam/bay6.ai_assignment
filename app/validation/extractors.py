@@ -114,6 +114,10 @@ LABELS: dict[str, re.Pattern[str]] = {
         re.IGNORECASE,
     ),
 }
+# A date the customer explicitly rejects ("the 20th, not yesterday") is not a candidate value.
+_NEGATED_BEFORE_RE = re.compile(
+    r"\b(?:not|never|instead of|rather than|wasn'?t|isn'?t)\s+(?:on\s+|the\s+)?$", re.IGNORECASE
+)
 _CLAUSE_SPLIT_RE = re.compile(r"[;!?\n]|\.(?=\s|$)|,|\bbut\b|\band\b|\bwhile\b", re.IGNORECASE)
 
 
@@ -261,7 +265,7 @@ def find_date_mentions(text: str, today: date) -> list[DateMention]:
             value, roles = _relative(kind, m, today)
             add(DateMention(m.group(0), m.start(), m.end(), relative=value, relative_roles=roles))
     found.sort(key=lambda d: d.start)
-    return found
+    return [m for m in found if not _NEGATED_BEFORE_RE.search(text[max(0, m.start - 20) : m.start])]
 
 
 # --- missing-year resolution ------------------------------------------------------------------

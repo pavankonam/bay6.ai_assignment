@@ -1,0 +1,19 @@
+id: cancel-07
+intent: cancel_policy
+category: happy
+description: Reviewer rejects (Flow D)
+turns:
+- user: I want to cancel my insurance.
+  expect_intent: cancel_policy
+- user: POL-100001 / 04/12/1985
+  expect_intent: provide_info
+- user: Nov 1, switching provider
+  expect_intent: provide_info
+- user: 'yes'
+- review:
+    decision: reject
+    comment: Please call to discuss retention options.
+expect:
+  outcome: CANCEL_REJECTED
+  write: null
+  max_turns: 5

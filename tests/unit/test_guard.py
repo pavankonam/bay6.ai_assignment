@@ -66,3 +66,9 @@ def test_check_response_names_failed_check() -> None:
     assert check_response("Your policy POL-100001 is active.", FACTS) is None
     assert check_response("Claim CLM-2026-000123.", FACTS) == "facts"
     assert check_response("POL-100001 will be covered.", FACTS) == "coverage"
+
+
+def test_amount_quoted_verbatim_from_facts_is_grounded() -> None:
+    facts = {"slots": {"incident_location": "near the $5 car wash"}}
+    assert facts_supported("Location: near the $5 car wash", facts)
+    assert not facts_supported("We'll refund $5.", {"slots": {}})

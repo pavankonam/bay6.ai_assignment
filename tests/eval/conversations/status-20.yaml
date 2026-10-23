@@ -1,0 +1,11 @@
+id: status-20
+intent: policy_status
+category: edge
+description: Out-of-scope request
+turns:
+- user: Can you give me a home insurance quote?
+  expect_intent: out_of_scope
+expect:
+  outcome: OUT_OF_SCOPE_ANSWERED
+  tools: []
+  write: null

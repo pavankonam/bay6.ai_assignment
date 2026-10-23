@@ -1,0 +1,26 @@
+id: cancel-05
+intent: cancel_policy
+category: happy
+description: LAPSED policy → $0.00 refund
+turns:
+- user: cancel my policy please
+  expect_intent: cancel_policy
+- user: POL-100002, 09/30/1990
+  expect_intent: provide_info
+- user: Nov 1, I don't need it anymore
+  expect_intent: provide_info
+- user: 'yes'
+- review:
+    decision: approve
+    comment: Verified, processed.
+expect:
+  outcome: CANCEL_COMPLETED
+  write:
+    tool: cancel_policy
+    args:
+      policy_id: POL-100002
+      effective_date: '2026-11-01'
+      reason: no_longer_needed
+  text_contains:
+  - $0.00
+  max_turns: 5

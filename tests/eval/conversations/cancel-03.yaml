@@ -1,0 +1,24 @@
+id: cancel-03
+intent: cancel_policy
+category: happy
+description: Sold vehicle, 'next Friday'
+turns:
+- user: I sold my car, so I need to cancel my policy.
+  expect_intent: cancel_policy
+- user: POL-100001, born 4/12/1985
+  expect_intent: provide_info
+- user: make it effective next Friday
+  expect_intent: provide_info
+- user: 'yes'
+- review:
+    decision: approve
+    comment: Verified, processed.
+expect:
+  outcome: CANCEL_COMPLETED
+  write:
+    tool: cancel_policy
+    args:
+      policy_id: POL-100001
+      effective_date: '2026-10-23'
+      reason: sold_vehicle
+  max_turns: 5

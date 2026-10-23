@@ -1,0 +1,27 @@
+id: claim-07
+intent: report_claim
+category: happy
+description: Police report, no estimate → approved
+turns:
+- user: I had a fender bender 3 days ago in the Walmart parking lot on Route 5.
+  expect_intent: report_claim
+- user: POL-100001, born 4/12/1985
+  expect_intent: provide_info
+- user: no injuries, yes another car
+  expect_intent: provide_info
+- user: I don't have an estimate yet but the police report number is PR-55821
+  expect_intent: provide_info
+- user: 'yes'
+- review:
+    decision: approve
+    comment: Verified, processed.
+expect:
+  outcome: CLAIM_CREATED
+  write:
+    tool: create_claim
+    args:
+      policy_id: POL-100001
+      incident_date: '2026-10-19'
+      estimated_damage_usd: null
+      police_report_number: PR-55821
+  max_turns: 7

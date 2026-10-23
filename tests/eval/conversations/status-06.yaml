@@ -1,0 +1,20 @@
+id: status-06
+intent: policy_status
+category: happy
+description: CANCELLED policy
+turns:
+- user: Is my policy POL-100003 still valid? I was born January 22, 1978.
+  expect_intent: policy_status
+expect:
+  outcome: STATUS_PROVIDED
+  slots:
+    policy_id: POL-100003
+    dob: '1978-01-22'
+  tools:
+  - verify_policyholder
+  - get_policy_status
+  write: null
+  max_turns: 3
+  text_contains:
+  - CANCELLED
+  - '2026-06-30'

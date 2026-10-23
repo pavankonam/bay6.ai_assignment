@@ -1,0 +1,22 @@
+id: status-01
+intent: policy_status
+category: happy
+description: Flow A
+turns:
+- user: Hi, can you check if my policy is still active?
+  expect_intent: policy_status
+- user: POL-100001, born April 12 1985
+  expect_intent: provide_info
+expect:
+  outcome: STATUS_PROVIDED
+  slots:
+    policy_id: POL-100001
+    dob: '1985-04-12'
+  tools:
+  - verify_policyholder
+  - get_policy_status
+  write: null
+  max_turns: 3
+  text_contains:
+  - ACTIVE
+  - 2022 Toyota Camry

@@ -6,7 +6,7 @@ COV_MIN ?= 85
 PYTEST_ARGS ?=
 
 .DEFAULT_GOAL := help
-.PHONY: help install seed run run-offline test test-llm test-deterministic lint typecheck format check \
+.PHONY: help install seed run run-offline eval-fake test test-llm test-deterministic lint typecheck format check \
         demo graph eval clean reset
 
 help: ## Show available targets
@@ -58,8 +58,11 @@ graph: ## Write the Mermaid graph to docs/graph.md
 demo: ## Scripted demo of all three requests + human approval (fake LLM, starts its own API)
 	$(PY) scripts/demo.py
 
-eval: ## Real-LLM evaluation (needs ANTHROPIC_API_KEY); writes reports/eval.md
+eval: ## Real-LLM evaluation of the 60 conversations (needs ANTHROPIC_API_KEY); reports/eval.md
 	$(PY) -m tests.eval.run_eval
+
+eval-fake: ## Dry-run the evaluation harness with the fake model (no key); reports/eval-fake.md
+	$(PY) -m tests.eval.run_eval --provider fake --out reports/eval-fake.md
 
 reset: ## Delete local databases (data/*.db) and re-seed
 	rm -f data/*.db data/*.db-wal data/*.db-shm

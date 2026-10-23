@@ -1,0 +1,27 @@
+id: claim-08
+intent: report_claim
+category: happy
+description: Liability-only policy gets the disclaimer
+turns:
+- user: I backed into a pole yesterday at the Target parking lot.
+  expect_intent: report_claim
+- user: POL-100004, born 11/3/1995
+  expect_intent: provide_info
+- user: no injuries, no other party
+  expect_intent: provide_info
+- user: about 900, no report
+  expect_intent: provide_info
+- user: 'yes'
+expect:
+  outcome: CLAIM_CREATED
+  write:
+    tool: create_claim
+    args:
+      policy_id: POL-100004
+      incident_date: '2026-10-21'
+      injuries: false
+      other_party_involved: false
+      estimated_damage_usd: 900
+  text_contains:
+  - does not include collision coverage
+  max_turns: 7

@@ -1,0 +1,23 @@
+id: claim-09
+intent: report_claim
+category: happy
+description: PENDING_CANCELLATION policy, incident before effective date
+turns:
+- user: Someone rear-ended me on 10/20 at Lake St.
+  expect_intent: report_claim
+- user: POL-100005, DOB 7/15/1988
+  expect_intent: provide_info
+- user: no injuries, yes another car
+  expect_intent: provide_info
+- user: 1200, no report
+  expect_intent: provide_info
+- user: 'yes'
+expect:
+  outcome: CLAIM_CREATED
+  write:
+    tool: create_claim
+    args:
+      policy_id: POL-100005
+      incident_date: '2026-10-20'
+      estimated_damage_usd: 1200
+  max_turns: 7

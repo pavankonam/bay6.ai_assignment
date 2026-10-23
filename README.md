@@ -266,7 +266,13 @@ make test-deterministic  # full suite, TOOL_SELECTION_MODE=deterministic, covera
 - Every test gets its own temporary databases.
 - **Unit tests** cover routing tables, the date extractor (relative grammar, year boundaries, ambiguity), validators, the invalidation matrix, the lifecycle, the write guard, idempotency, the refund formula, the response guard and redaction.
 - **Integration tests** drive the compiled graph, the runtime, the FastAPI app (`TestClient`) and the CLI against a live Uvicorn server. They cover the PRD flows A–I and F2, approvals (approve, reject, expire, late decision, crash windows, restart, concurrency), the write-retry consent matrix, unknown write outcomes, internal-error escalation, prompt injection and fault injection.
-- `make eval` (milestone M10) runs the 60 real-LLM evaluation conversations (needs `ANTHROPIC_API_KEY`; not part of `make check`).
+- `make eval` runs the 60 evaluation conversations in `tests/eval/conversations/` (20 per request, including 15 edge/adversarial ones) against the **real** Claude model. It needs `ANTHROPIC_API_KEY` and is not part of `make check`. It writes `reports/eval.md` and `.json`, covering the PRD §11.1 metrics:
+  - intent, slot and date accuracy;
+  - task success;
+  - unauthorized writes, ungrounded IDs and amounts, and coverage language (hard gates: 0 each);
+  - turns per request, LLM calls and tokens.
+  
+  It exits non-zero if any target is missed. `make eval-fake` dry-runs the same harness with the fake model. That checks the harness and the hard gates, not language-understanding quality.
 
 ## Packaging notes
 

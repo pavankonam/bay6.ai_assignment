@@ -1,0 +1,20 @@
+id: status-07
+intent: policy_status
+category: happy
+description: PENDING_CANCELLATION policy
+turns:
+- user: 'Check my policy status: POL-100005, DOB 07/15/1988'
+  expect_intent: policy_status
+expect:
+  outcome: STATUS_PROVIDED
+  slots:
+    policy_id: POL-100005
+    dob: '1988-07-15'
+  tools:
+  - verify_policyholder
+  - get_policy_status
+  write: null
+  max_turns: 3
+  text_contains:
+  - PENDING_CANCELLATION
+  - '2026-11-15'

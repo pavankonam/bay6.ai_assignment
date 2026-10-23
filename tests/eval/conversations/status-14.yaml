@@ -1,0 +1,21 @@
+id: status-14
+intent: policy_status
+category: happy
+description: Identity given in pieces
+turns:
+- user: I want to check my policy status
+  expect_intent: policy_status
+- user: POL-100006
+  expect_intent: provide_info
+- user: dob 2/28/1970
+  expect_intent: provide_info
+expect:
+  outcome: STATUS_PROVIDED
+  slots:
+    policy_id: POL-100006
+    dob: '1970-02-28'
+  tools:
+  - verify_policyholder
+  - get_policy_status
+  write: null
+  max_turns: 3

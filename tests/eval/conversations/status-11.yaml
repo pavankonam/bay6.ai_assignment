@@ -1,0 +1,19 @@
+id: status-11
+intent: policy_status
+category: happy
+description: Casual phrasing
+turns:
+- user: Hey, am I still insured with you guys?
+  expect_intent: policy_status
+- user: POL-100006 and my birthday is Feb 28, 1970
+  expect_intent: provide_info
+expect:
+  outcome: STATUS_PROVIDED
+  slots:
+    policy_id: POL-100006
+    dob: '1970-02-28'
+  tools:
+  - verify_policyholder
+  - get_policy_status
+  write: null
+  max_turns: 3

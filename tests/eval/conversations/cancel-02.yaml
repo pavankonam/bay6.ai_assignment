@@ -1,0 +1,24 @@
+id: cancel-02
+intent: cancel_policy
+category: happy
+description: Everything in one message
+turns:
+- user: Please cancel POL-100001 effective November 1 because I'm switching providers. My DOB is 4/12/1985.
+  expect_intent: cancel_policy
+- user: 'yes'
+- review:
+    decision: approve
+    comment: Verified, processed.
+expect:
+  outcome: CANCEL_COMPLETED
+  tools:
+  - verify_policyholder
+  - get_policy_status
+  - get_cancellation_quote
+  write:
+    tool: cancel_policy
+    args:
+      policy_id: POL-100001
+      effective_date: '2026-11-01'
+      reason: switching_provider
+  max_turns: 5

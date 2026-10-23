@@ -1,0 +1,19 @@
+id: status-08
+intent: policy_status
+category: happy
+description: Liability-only coverages
+turns:
+- user: What coverages do I have? POL-100004, born 11/3/1995
+  expect_intent: policy_status
+expect:
+  outcome: STATUS_PROVIDED
+  slots:
+    policy_id: POL-100004
+    dob: '1995-11-03'
+  tools:
+  - verify_policyholder
+  - get_policy_status
+  write: null
+  max_turns: 3
+  text_contains:
+  - Liability

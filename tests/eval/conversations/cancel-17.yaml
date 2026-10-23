@@ -1,0 +1,14 @@
+id: cancel-17
+intent: cancel_policy
+category: edge
+description: Already PENDING_CANCELLATION
+turns:
+- user: I need to cancel my insurance policy
+  expect_intent: cancel_policy
+- user: POL-100005, 7/15/1988
+  expect_intent: provide_info
+expect:
+  outcome: NOT_ELIGIBLE_CANCEL
+  write: null
+  forbidden_tools:
+  - get_cancellation_quote

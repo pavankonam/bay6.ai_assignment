@@ -1,0 +1,27 @@
+id: claim-13
+intent: report_claim
+category: happy
+description: Correction before the summary
+turns:
+- user: I got rear-ended yesterday.
+  expect_intent: report_claim
+- user: POL-100001, born 4/12/1985
+  expect_intent: provide_info
+- user: Main St & 5th Ave
+  expect_intent: provide_info
+- user: actually the accident was on the 20th, not yesterday
+  expect_intent: provide_info
+- user: no injuries, yes another car
+  expect_intent: provide_info
+- user: 2000, no report
+  expect_intent: provide_info
+- user: 'yes'
+expect:
+  outcome: CLAIM_CREATED
+  write:
+    tool: create_claim
+    args:
+      policy_id: POL-100001
+      incident_date: '2026-10-20'
+      estimated_damage_usd: 2000
+  max_turns: 7

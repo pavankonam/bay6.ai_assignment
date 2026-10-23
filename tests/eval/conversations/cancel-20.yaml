@@ -1,0 +1,25 @@
+id: cancel-20
+intent: cancel_policy
+category: edge
+description: More than 60 days out is re-asked
+turns:
+- user: I want to cancel effective March 1 2027
+  expect_intent: cancel_policy
+- user: POL-100001, born 4/12/1985
+  expect_intent: provide_info
+- user: Dec 15 then, switching provider
+  expect_intent: provide_info
+- user: 'yes'
+- review:
+    decision: approve
+    comment: Verified, processed.
+expect:
+  outcome: CANCEL_COMPLETED
+  write:
+    tool: cancel_policy
+    args:
+      policy_id: POL-100001
+      effective_date: '2026-12-15'
+      reason: switching_provider
+  text_contains:
+  - 60 days

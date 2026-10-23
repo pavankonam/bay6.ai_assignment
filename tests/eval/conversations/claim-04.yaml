@@ -1,0 +1,30 @@
+id: claim-04
+intent: report_claim
+category: happy
+description: Injury → reviewer approves
+turns:
+- user: I was in a crash yesterday on Highway 9 and my passenger hurt her wrist.
+  expect_intent: report_claim
+- user: POL-100001, born 4/12/1985
+  expect_intent: provide_info
+- user: yes, another car was involved
+  expect_intent: provide_info
+- user: around 4000, no report
+  expect_intent: provide_info
+- user: 'yes'
+- review:
+    decision: approve
+    comment: Verified, processed.
+expect:
+  outcome: CLAIM_CREATED
+  write:
+    tool: create_claim
+    args:
+      policy_id: POL-100001
+      incident_date: '2026-10-21'
+      injuries: true
+      other_party_involved: true
+      estimated_damage_usd: 4000
+  approval_reasons:
+  - injuries_reported
+  max_turns: 7

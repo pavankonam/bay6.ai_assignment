@@ -1,0 +1,30 @@
+id: claim-12
+intent: report_claim
+category: happy
+description: Edit at confirmation
+turns:
+- user: I got rear-ended yesterday.
+  expect_intent: report_claim
+- user: POL-100001, 1985-04-12
+  expect_intent: provide_info
+- user: Main St & 5th Ave, Springfield
+  expect_intent: provide_info
+- user: No injuries, yes another car
+  expect_intent: provide_info
+- user: about 2500, no report
+  expect_intent: provide_info
+- user: yes, but change the location to Main St & 6th Ave
+- user: 'yes'
+expect:
+  outcome: CLAIM_CREATED
+  write:
+    tool: create_claim
+    args:
+      policy_id: POL-100001
+      incident_date: '2026-10-21'
+      incident_location: Main St & 6th Ave
+      injuries: false
+      other_party_involved: true
+      estimated_damage_usd: 2500
+      police_report_number: null
+  max_turns: 7

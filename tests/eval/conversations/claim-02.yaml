@@ -1,0 +1,25 @@
+id: claim-02
+intent: report_claim
+category: happy
+description: Details up front
+turns:
+- user: 'I need to report an accident. It happened yesterday at Oak Rd and 3rd St in Springfield: someone
+    ran a red light and hit my front bumper. Nobody was hurt.'
+  expect_intent: report_claim
+- user: POL-100001, born 4/12/1985
+  expect_intent: provide_info
+- user: about $1,800, police report number PR-20261021
+  expect_intent: provide_info
+- user: 'yes'
+expect:
+  outcome: CLAIM_CREATED
+  write:
+    tool: create_claim
+    args:
+      policy_id: POL-100001
+      incident_date: '2026-10-21'
+      injuries: false
+      other_party_involved: true
+      estimated_damage_usd: 1800
+      police_report_number: PR-20261021
+  max_turns: 7

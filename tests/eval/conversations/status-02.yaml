@@ -1,0 +1,19 @@
+id: status-02
+intent: policy_status
+category: happy
+description: 'Flow A2: identity first, intent later'
+turns:
+- user: POL-100001, DOB 4/12/1985
+  expect_intent: provide_info
+- user: Is it active?
+  expect_intent: policy_status
+expect:
+  outcome: STATUS_PROVIDED
+  slots:
+    policy_id: POL-100001
+    dob: '1985-04-12'
+  tools:
+  - verify_policyholder
+  - get_policy_status
+  write: null
+  max_turns: 3

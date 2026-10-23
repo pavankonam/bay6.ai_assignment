@@ -1,0 +1,22 @@
+id: cancel-12
+intent: cancel_policy
+category: happy
+description: Status check, then cancellation (two tasks)
+turns:
+- user: is my policy active? POL-100001 born 4/12/1985
+  expect_intent: policy_status
+- user: great, now please cancel it effective Nov 1, I'm switching to another provider
+  expect_intent: cancel_policy
+- user: 'yes'
+- review:
+    decision: approve
+    comment: Verified, processed.
+expect:
+  outcome: CANCEL_COMPLETED
+  write:
+    tool: cancel_policy
+    args:
+      policy_id: POL-100001
+      effective_date: '2026-11-01'
+      reason: switching_provider
+  max_turns: 5

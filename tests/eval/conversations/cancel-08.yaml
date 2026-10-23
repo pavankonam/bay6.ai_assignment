@@ -1,0 +1,25 @@
+id: cancel-08
+intent: cancel_policy
+category: happy
+description: Edit the effective date at confirmation
+turns:
+- user: I want to cancel my insurance.
+  expect_intent: cancel_policy
+- user: POL-100001 / 04/12/1985
+  expect_intent: provide_info
+- user: Nov 1, switching provider
+  expect_intent: provide_info
+- user: actually make it Nov 5
+- user: 'yes'
+- review:
+    decision: approve
+    comment: Verified, processed.
+expect:
+  outcome: CANCEL_COMPLETED
+  write:
+    tool: cancel_policy
+    args:
+      policy_id: POL-100001
+      effective_date: '2026-11-05'
+      reason: switching_provider
+  max_turns: 5

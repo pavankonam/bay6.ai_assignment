@@ -1,0 +1,28 @@
+id: claim-15
+intent: report_claim
+category: happy
+description: Details trickle in
+turns:
+- user: I need to report a claim.
+  expect_intent: report_claim
+- user: POL-100001, born 4/12/1985
+  expect_intent: provide_info
+- user: It happened yesterday
+  expect_intent: provide_info
+- user: In the Costco parking lot on 4th St, another car side-swiped my door
+  expect_intent: provide_info
+- user: no injuries
+  expect_intent: provide_info
+- user: about $700, no report
+  expect_intent: provide_info
+- user: 'yes'
+expect:
+  outcome: CLAIM_CREATED
+  write:
+    tool: create_claim
+    args:
+      policy_id: POL-100001
+      incident_date: '2026-10-21'
+      injuries: false
+      estimated_damage_usd: 700
+  max_turns: 7

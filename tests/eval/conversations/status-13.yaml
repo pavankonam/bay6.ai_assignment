@@ -1,0 +1,21 @@
+id: status-13
+intent: policy_status
+category: happy
+description: Paid-through question
+turns:
+- user: When is my premium paid through?
+  expect_intent: policy_status
+- user: POL-100004, 11/03/1995
+  expect_intent: provide_info
+expect:
+  outcome: STATUS_PROVIDED
+  slots:
+    policy_id: POL-100004
+    dob: '1995-11-03'
+  tools:
+  - verify_policyholder
+  - get_policy_status
+  write: null
+  max_turns: 3
+  text_contains:
+  - '2027-04-30'

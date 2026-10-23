@@ -1,0 +1,14 @@
+id: cancel-16
+intent: cancel_policy
+category: edge
+description: Already CANCELLED
+turns:
+- user: Cancel my policy
+  expect_intent: cancel_policy
+- user: POL-100003, 1/22/1978
+  expect_intent: provide_info
+expect:
+  outcome: NOT_ELIGIBLE_CANCEL
+  write: null
+  forbidden_tools:
+  - get_cancellation_quote
