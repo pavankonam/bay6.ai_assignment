@@ -380,3 +380,37 @@ Choices the PRD (`docs/PRD.md`) does not dictate: library versions, ambiguities,
 ### D-057 Simulating a crash before the interrupt
 - **Decision:** `build_graph(..., interrupt_before=[...])` exists for tests only. Compiling with `interrupt_before=["human_approval"]` reproduces the persisted state of a crash after `announce_approval` was checkpointed: `next == ("human_approval",)` and no interrupts. The test then reopens the same SQLite file with a normal graph.
 - **Why:** This reproduces exactly the persisted state the PRD's step 2a must repair, without killing a real process mid-step.
+
+---
+
+## M6: Error handling + responses
+
+### D-058 Write-failure wording depends on whether approval was involved
+- **Context:** Flow F2's message ("Your request was approved, but we couldn't complete it right now…") assumes an approved request. A low-severity claim needs no approval but can still hit a write failure.
+- **Decision:** It says "Your request was **confirmed**, but…" when `requires_approval` is false, and "approved" otherwise. The retry and withdraw instructions are identical.
+- **Why:** The agent must never claim an approval that didn't happen.
+
+### D-059 Unknown outcome (FR47a) is carried as an error code
+- **Decision:** When write retries are exhausted and `lookup_write_result` itself fails, `execute_write_action` stores the error with code `WRITE_OUTCOME_UNKNOWN` (retryable) and `resume_step=execute_write`.
+  - `handle_error` then sets `retry_write` with `context.outcome_unknown=true` and sends the "We couldn't confirm whether your approved request went through…" offer.
+  - On "no", a second unrelated reply, or a handoff, `withdrawal_check()` calls the lookup again. Found → the real success template. Absent → `WRITE_WITHDRAWN`. Still unknown → `last_outcome=WRITE_OUTCOME_UNKNOWN`, an ERROR log with the idempotency key, and escalation.
+- **Why:** The customer is never told a request was withdrawn when it may have committed (R19).
+
+### D-060 Handoff during `retry_write`
+- **Decision:** A handoff during `retry_write` first runs the withdrawal check and appends the truthful status message (success or withdrawn), then escalates with the handoff message. If the status can't be determined, only the "a specialist will confirm the status" escalation is sent.
+- **Why:** FR29b: "run the FR47a withdrawal path first (truthful status), then escalate".
+
+### D-061 FR47b escalation details
+- **Decision:**
+  - `handle_error` handles any non-retryable error code: `CONFLICT`, `APPROVAL_REQUIRED`, `UNAUTHORIZED_WRITE`, `NOT_FOUND`, `INTERNAL`, or any unknown code. It marks the error `internal`, sets `last_outcome=ESCALATED`, and logs at ERROR (CRITICAL for `UNAUTHORIZED_WRITE`).
+  - `escalate` sends the generic internal-error message, applies the FR5a reset (so no stale `pending_action` survives) and increments `escalations_total{reason="internal_error"}`. The metric is incremented once, in `escalate`, not in both nodes.
+- **Why:** FR47b. Counting in one place avoids double-counting the metric.
+
+### D-062 What the fact check (FR50) recognizes
+- **Decision:** It extracts reference IDs (POL/CLM/CNL/APR), ISO dates, long-form dates ("December 31, 2026" → ISO) and `$` amounts from the LLM reply. Every one must appear in the flattened `response_facts` (plus the pending question text). Numbers are compared as floats rounded to cents.
+- **Why:** These are the three value classes FR50 names. Anything else (for example "2 business days") is prose.
+
+### D-063 NFR14 restores the turn's starting status
+- **Context:** `ingest` checkpoints its normalization (`awaiting_info → in_progress`) before a later node can fail. "The thread stays at its last checkpoint with its status unchanged" otherwise loses the turn's starting status.
+- **Decision:** The invocation wrapper captures `status` before invoking. On an unhandled exception it writes that status back, together with the system-unavailable message and `last_outcome=SYSTEM_UNAVAILABLE`.
+- **Why:** This is the intent of NFR14: a crash leaves the conversation exactly where the customer last saw it, and the next message is processed normally (tested).

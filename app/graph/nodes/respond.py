@@ -11,12 +11,16 @@ from app.graph.speech import say
 from app.graph.state import TERMINAL_OUTCOMES
 from app.llm import build_history, text_call
 from app.nlu.redaction import redactor_for
+from app.observability.logging import get_logger
+from app.responses.guard import check_response
 from app.responses.outcomes import (
     TEMPLATE_ONLY_OUTCOMES,
     last_question,
     last_question_meta,
     render_template,
 )
+
+log = get_logger(__name__)
 
 
 def _outcome(state: Mapping[str, Any]) -> str | None:
@@ -68,7 +72,13 @@ def respond(state: Mapping[str, Any]) -> dict[str, Any]:
         )
         update["llm_calls"] = llm_calls + result.calls
         if result.value is not None:
-            text = result.value
+            failed = check_response(
+                result.value, {**facts, "pending_question": last_question(state)}
+            )
+            if failed is None:
+                text = result.value
+            else:
+                log.warning("response_guard_fallback", check=failed, outcome=outcome)
     meta: dict[str, Any] = {ASKED_SLOTS: []}
     if outcome in ("SMALLTALK", "OUT_OF_SCOPE_ANSWERED"):
         question, asked = last_question_meta(state)

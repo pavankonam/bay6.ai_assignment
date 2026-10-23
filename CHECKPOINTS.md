@@ -15,7 +15,7 @@ Each milestone commit is tagged `checkpoint_mN`. A commit cannot contain its own
 | M3: Understanding + slots + verification | ✅ Passed | 491 / 491 | 92.1% / 92.1% | `e90bd80` | `checkpoint_m3` |
 | M4: Claim + cancellation + confirmation | ✅ Passed | 549 / 549 | 94.0% / 94.0% | `ef6ce0e` | `checkpoint_m4` |
 | M5: Human-in-the-loop | ✅ Passed | 574 / 574 | 94.7% / 94.7% | `4dfd866` | `checkpoint_m5` |
-| M6: Error handling + responses | ⏳ Not started | | | | |
+| M6: Error handling + responses | ✅ Passed | 630 / 630 | 96.3% / 96.3% | _pending_ | `checkpoint_m6` |
 | M7: API + CLI | ⏳ Not started | | | | |
 | M8: Docs (core sign-off) | ⏳ Not started | | | | |
 | M9: Hardening | ⏳ Not started | | | | |
@@ -96,3 +96,24 @@ Each milestone commit is tagged `checkpoint_mN`. A commit cannot contain its own
     - Resume: a double resume writes once (NFR12); a crashed resume is completed by the customer's next message (step 3b).
     - Concurrency: decision and message at once ×3.
   - **Unit tests:** the approvals service (insert-or-get uniqueness with `customer`, conditional decide/expire setting `resume_status='pending'`, TTL).
+
+## M6: Error handling + responses
+- **Exit criteria (PRD §12):** Flows F and F2 pass; the correction-after-failure, write-retry consent matrix, commit-then-timeout and internal-error tests pass; the fault-injection suite passes; the hallucination and coverage-guard tests pass.
+- **Result:**
+  - **Integration tests** (`tests/integration/test_errors.py`):
+    - **Read failures:**
+      - Flow F: a quote timeout with 3 attempts, then "actually make it Nov 5" → the quote is called with 2026-11-05.
+      - A lookup failure followed by a `policy_id` correction re-verifies.
+      - Smalltalk keeps the failure state; a new intent suspends the failed task.
+    - **Flow F2** on POL-999501:
+      - Consent matrix, each with a write-count assertion: retry/yes → exactly 1 write with the original key; no / stop / cancel that / wait / withdraw → 0 writes; unrelated twice → re-ask then withdraw; a new intent → re-ask; handoff → truthful status then escalation.
+      - The claim-without-approval wording.
+    - **FR47a:**
+      - POL-999502 reports the real confirmation number.
+      - With `MOCK_FAULT_LOOKUP`, an unknown outcome → "no" → `WRITE_OUTCOME_UNKNOWN` escalation, never "withdrawn".
+      - If the lookup recovers, "no" reports the real success.
+    - **FR47b:** CONFLICT, an unknown code, NOT_FOUND after verification, APPROVAL_REQUIRED and UnauthorizedWriteError all escalate (not `failed_retryable`).
+    - **Guards:** hallucinated ID, date and amount → template; coverage language → template; coverage questions mid-claim.
+    - **Wrappers:** `RECURSION_LIMIT=3` → escalation (NFR13); an unhandled exception → system-unavailable with the status unchanged and the next message processed normally (NFR14).
+    - **Soak:** a seeded random-fault soak (×4) with no crashes, no leaked internals and at most one write.
+  - **Unit tests:** the guard functions (`tests/unit/test_guard.py`).

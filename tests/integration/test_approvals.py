@@ -16,17 +16,12 @@ from app.approvals.service import approvals_service
 from app.concurrency import ThreadLocks
 from app.config import utcnow
 from app.db import session_scope
-from app.graph.builder import CompiledGraph, build_graph
+from app.graph.builder import build_graph
 from app.graph.checkpointer import close_checkpointer, open_checkpointer
 from app.mock_api.repository import Cancellation, Claim
 from app.runtime import ConflictError, MessageResult, NotFoundError, SupportRuntime
 
 APR_RE = re.compile(r"APR-[A-Z2-7]{5}")
-
-
-@pytest.fixture
-def runtime(graph: CompiledGraph) -> SupportRuntime:
-    return SupportRuntime(graph, locks=ThreadLocks())
 
 
 def cancellations() -> list[Cancellation]:

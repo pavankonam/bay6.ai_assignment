@@ -116,6 +116,7 @@ class SupportRuntime:
         """Invocation wrapper: NFR13 (recursion limit → escalate) before NFR14 (anything else →
         system-unavailable, status unchanged)."""
         config = _config(thread_id)
+        status_before = self.snapshot(thread_id).values.get("status")
         try:
             self.graph.invoke(payload, config)
         except GraphRecursionError:
@@ -138,6 +139,8 @@ class SupportRuntime:
                 {
                     "messages": [ai(templates.system_unavailable())],
                     "last_outcome": "SYSTEM_UNAVAILABLE",
+                    # NFR14: the turn's status is left as it was before this turn started.
+                    **({"status": status_before} if status_before else {}),
                 },
                 as_node="clarify",
             )

@@ -119,3 +119,11 @@ def convo(graph: CompiledGraph) -> Callable[[], Conversation]:
         return Conversation(graph, thread_id)
 
     return make
+
+
+@pytest.fixture
+def runtime(graph: CompiledGraph) -> Any:
+    from app.concurrency import ThreadLocks
+    from app.runtime import SupportRuntime
+
+    return SupportRuntime(graph, locks=ThreadLocks())

@@ -41,6 +41,10 @@ def render_template(outcome: str | None, state: Mapping[str, Any], facts: Mappin
     snapshot = facts.get("policy") or state.get("policy_snapshot") or {}
     if facts.get("template") == "okay_more_help":
         return templates.okay_more_help()
+    if facts.get("template") == "approved_write_failed":
+        return templates.approved_write_failed(bool(facts.get("approved")))
+    if facts.get("template") == "write_outcome_unknown_offer":
+        return templates.write_outcome_unknown_offer()
     if facts.get("template") == "no_resubmit":
         return f"Okay, I won't resubmit it. {templates.more_help()}"
     if outcome == "STATUS_PROVIDED":
@@ -82,6 +86,8 @@ def render_template(outcome: str | None, state: Mapping[str, Any], facts: Mappin
         return templates.approval_rejected(action_type, comment)
     if outcome == "APPROVAL_EXPIRED":
         return templates.approval_expired(approval.get("approval_id"))
+    if outcome == "WRITE_WITHDRAWN":
+        return templates.write_withdrawn()
     if outcome == "DECLINED_BY_CUSTOMER":
         return templates.declined()
     if outcome == "WRITE_NOT_ELIGIBLE":

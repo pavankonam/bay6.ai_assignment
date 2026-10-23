@@ -8,11 +8,16 @@ from typing import Any
 from app.graph.lifecycle import SUSPEND_RESET, identity_only, reset_task_state
 from app.graph.messages import PENDING_ANSWER, annotate, latest_human_text
 from app.graph.nodes.base import graph_node
+from app.graph.nodes.execute_write_action import resolve_unknown_outcome, success_update
 from app.graph.speech import say
 from app.llm import build_history, structured_call
 from app.nlu.redaction import redactor_for
 from app.nlu.rules import bare_yes_no, is_handoff
 from app.nlu.schemas import YesNoResult
+from app.observability.logging import get_logger
+from app.responses.outcomes import render_template
+
+log = get_logger(__name__)
 
 
 def classify_reply(state: Mapping[str, Any], kind: str) -> tuple[str, int]:
@@ -95,6 +100,44 @@ def _handle_duplicate(state: Mapping[str, Any], answer: str) -> dict[str, Any]:
     }
 
 
+def withdrawal_check(state: Mapping[str, Any], *, handoff: bool = False) -> dict[str, Any]:
+    """FR47a: before telling the customer anything, re-check the backend by idempotency key."""
+    action = state.get("pending_action") or {}
+    found, data = resolve_unknown_outcome(action)
+    if found == "found":
+        assert data is not None
+        return success_update(action, data)  # it went through: report the real confirmation
+    if found == "absent":
+        return {
+            "last_outcome": "WRITE_WITHDRAWN",
+            "error": None,
+            "resume_step": None,
+            "response_facts": {"outcome": "WRITE_WITHDRAWN"},
+        }
+    log.error(
+        "write_outcome_unknown",
+        idempotency_key=action.get("idempotency_key"),
+        handoff=handoff,
+    )
+    return {"last_outcome": "WRITE_OUTCOME_UNKNOWN", "error": None, "resume_step": None}
+
+
+def _handle_retry_write(
+    state: Mapping[str, Any], answer: str, context: Mapping[str, Any]
+) -> tuple[str, dict[str, Any]]:
+    """Returns the effective answer and the state update (FR11a `retry_write` row)."""
+    if answer == "yes":
+        return "yes", {}
+    if answer == "unrelated" and int(context.get("reask_count", 0)) == 0:
+        return "reask", {
+            "pending_question": {
+                "kind": "retry_write",
+                "context": {**context, "reask_count": int(context.get("reask_count", 0)) + 1},
+            }
+        }
+    return "no", withdrawal_check(state)
+
+
 def _handle_restart(
     state: Mapping[str, Any], answer: str, context: Mapping[str, Any]
 ) -> dict[str, Any]:
@@ -116,7 +159,19 @@ def handle_pending_question(state: Mapping[str, Any]) -> dict[str, Any]:
     update: dict[str, Any] = {"pending_question": None}
     if calls:
         update["llm_calls"] = int(state.get("llm_calls", 0)) + calls
-    if answer != "handoff":
+    if kind == "retry_write":
+        if answer == "handoff":
+            # FR29b: truthful status first, then escalate.
+            status = withdrawal_check(state, handoff=True)
+            update.update(status)
+            outcome = status.get("last_outcome")
+            if outcome != "WRITE_OUTCOME_UNKNOWN":
+                text = render_template(outcome, state, status.get("response_facts") or {})
+                update["messages"] = [say(state, text)]
+        else:
+            answer, retry_update = _handle_retry_write(state, answer, context)
+            update.update(retry_update)
+    elif answer != "handoff":
         if kind == "next_task":
             update.update(_handle_next_task(state, answer, context))
         elif kind == "file_duplicate_claim":

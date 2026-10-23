@@ -436,3 +436,26 @@ def approval_expired(approval_id: str | None) -> str:
         f"Your request {approval_id} expired before it could be reviewed. "
         "Would you like me to submit it again?"
     )
+
+
+def approved_write_failed(approved: bool) -> str:
+    lead = "Your request was approved" if approved else "Your request was confirmed"
+    return (
+        f"{lead}, but we couldn't complete it right now. Reply 'retry' to try again, or 'no' to "
+        f"withdraw it. You can also call {phone()}."
+    )
+
+
+def write_outcome_unknown_offer() -> str:
+    return (
+        "We couldn't confirm whether your approved request went through. Reply 'retry' to try "
+        "again (it's safe: it can't be submitted twice), or 'no' and a specialist will confirm "
+        f"the status with you. You can also call {phone()}."
+    )
+
+
+def write_withdrawn() -> str:
+    return (
+        "Okay, I've withdrawn your request, so nothing was submitted. If you need anything "
+        f"else, please call {phone()}."
+    )
