@@ -189,3 +189,11 @@ Each milestone commit is tagged `checkpoint_mN`. A commit cannot contain its own
 - **Added:** NFR15 `thread_id` context on all logs, and an end-to-end no-PII log test (D-083).
 - **Gates:** `make check` passes: 685 / 685 tests in each mode, 96.5% coverage.
 - **Repo hygiene:** no `.env` or database files are tracked (`git ls-files` check).
+- **Final fresh-clone check** (a `git clone` into a scratch directory, Python 3.11.9, HEAD `d69adcc`):
+  - `make install` works.
+  - `make check` passes: lint, mypy, 685 / 685 tests in each mode, 96.5% coverage.
+  - `make demo` runs all three requests plus approve and reject.
+  - `make eval-fake`: all hard gates at 0.
+  - `make eval` with no key → exit 2 with a clear message.
+  - The interactive walkthrough works: `make run-offline`, then `support chat` (cancellation) → `support approvals decide --approve` → `support chat --thread-id` shows the confirmation.
+  - `git status` is clean (databases ignored).
