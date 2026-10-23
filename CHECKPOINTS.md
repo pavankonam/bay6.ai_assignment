@@ -12,7 +12,7 @@ Each milestone commit is tagged `checkpoint_mN`. A commit cannot contain its own
 | M0: Scaffold | ✅ Passed | 15 / 15 | 98.0% / 98.0% | `7d9ce56` | `checkpoint_m0` |
 | M1: Mock backend + tools | ✅ Passed | 80 / 80 | 97.7% / 97.7% | `c9cbbb1` | `checkpoint_m1` |
 | M2: State + graph skeleton | ✅ Passed | 276 / 276 | 96.2% / 96.2% | `c723f01` | `checkpoint_m2` |
-| M3: Understanding + slots + verification | ✅ Passed | 491 / 491 | 92.1% / 92.1% | _pending_ | `checkpoint_m3` |
+| M3: Understanding + slots + verification | ✅ Passed | 491 / 491 | 92.1% / 92.1% | `e90bd80` | `checkpoint_m3` |
 | M4: Claim + cancellation + confirmation | ⏳ Not started | | | | |
 | M5: Human-in-the-loop | ⏳ Not started | | | | |
 | M6: Error handling + responses | ⏳ Not started | | | | |
