@@ -85,7 +85,7 @@ def test_node_writing_unknown_key_fails() -> None:
 
 
 def test_every_graph_node_is_schema_checked() -> None:
-    assert all(getattr(fn, "__wrapped__", None) for fn in NODES.values())
+    assert all(getattr(fn, "node_fn", None) for fn in NODES.values())
 
 
 # --- allowlist (Section 8.7, NFR4) -------------------------------------------------------------

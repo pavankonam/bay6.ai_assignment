@@ -79,6 +79,24 @@ class Conversation:
                 lines.append(f"  [{m.name}] {json.dumps(m.artifact, default=str)[:120]}")
         return "\n".join(lines)
 
+    def asked(self) -> list[str]:
+        from app.graph.messages import last_asked_slots
+
+        return last_asked_slots(self.state)
+
+    def answer_until_summary(self, answers: dict[str, str], max_turns: int = 8) -> str:
+        """Answer whatever slots the agent asks for (by first asked slot) until a summary."""
+        reply = ""
+        for _ in range(max_turns):
+            if self.state.get("status") != "awaiting_info":
+                break
+            asked = self.asked()
+            key = next((a for a in asked if a in answers), None)
+            if key is None:
+                raise AssertionError(f"No scripted answer for {asked}:\n{self.transcript()}")
+            reply = self.reply(answers[key])
+        return reply
+
     def all_agent_text(self) -> str:
         return "\n".join(self.replies_since(0))
 

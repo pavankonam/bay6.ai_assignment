@@ -55,7 +55,33 @@ def render_template(outcome: str | None, state: Mapping[str, Any], facts: Mappin
             checks.get("reason"), state.get("verified_policy_id"), checks.get("incident_date")
         )
     if outcome == "CLAIM_NOT_FILED_DUPLICATE":
+        if facts.get("at_write"):
+            return templates.duplicate_at_write(facts.get("existing_claim_id"))
         return templates.claim_not_filed_duplicate()
+    approval = state.get("approval") or {}
+    comment = approval.get("comment")
+    result = facts.get("result") or {}
+    if outcome == "CLAIM_CREATED":
+        return templates.claim_created(
+            str(result.get("claim_id")),
+            str(result.get("next_steps", "")),
+            approved=approval.get("status") == "approved",
+            comment=comment,
+        )
+    if outcome == "CANCEL_COMPLETED":
+        payload = (state.get("pending_action") or {}).get("payload") or {}
+        return templates.cancel_completed(
+            str(payload.get("policy_id") or state.get("verified_policy_id")),
+            str(result.get("effective_date")),
+            str(result.get("cancellation_id")),
+            float(result.get("refund_estimate_usd") or 0),
+            comment,
+        )
+    if outcome == "DECLINED_BY_CUSTOMER":
+        return templates.declined()
+    if outcome == "WRITE_NOT_ELIGIBLE":
+        action_type = str((state.get("pending_action") or {}).get("action_type"))
+        return templates.write_not_eligible(action_type)
     if outcome == "SYSTEM_UNAVAILABLE":
         return templates.system_unavailable()
     if outcome == "OUT_OF_SCOPE_ANSWERED":

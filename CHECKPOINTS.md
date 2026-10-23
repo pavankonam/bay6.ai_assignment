@@ -13,7 +13,7 @@ Each milestone commit is tagged `checkpoint_mN`. A commit cannot contain its own
 | M1: Mock backend + tools | ✅ Passed | 80 / 80 | 97.7% / 97.7% | `c9cbbb1` | `checkpoint_m1` |
 | M2: State + graph skeleton | ✅ Passed | 276 / 276 | 96.2% / 96.2% | `c723f01` | `checkpoint_m2` |
 | M3: Understanding + slots + verification | ✅ Passed | 491 / 491 | 92.1% / 92.1% | `e90bd80` | `checkpoint_m3` |
-| M4: Claim + cancellation + confirmation | ⏳ Not started | | | | |
+| M4: Claim + cancellation + confirmation | ✅ Passed | 549 / 549 | 94.0% / 94.0% | _pending_ | `checkpoint_m4` |
 | M5: Human-in-the-loop | ⏳ Not started | | | | |
 | M6: Error handling + responses | ⏳ Not started | | | | |
 | M7: API + CLI | ⏳ Not started | | | | |
@@ -67,3 +67,17 @@ Each milestone commit is tagged `checkpoint_mN`. A commit cannot contain its own
     - LLM: FR48 timeout fallback, repair-then-fallback, the per-thread call cap.
     - Data: no raw DOB in any LLM payload; no DOB or name in the lookup.
   - **Unit tests:** the extractor (every relative phrase, formats, roles, ambiguity, two-digit and missing years), validators, the FR29a matrix, the FR5a lifecycle, the rules and bare-reply lists, and redaction.
+
+## M4: Claim + cancellation + confirmation
+- **Exit criteria (PRD §12):** Flows B and I pass; the eligibility, duplicate (incl. unverified and unrelated reply), edit-invalidation, mixed-confirmation and injection tests pass.
+- **Result:**
+  - **Integration tests** (`tests/integration/test_claims_and_cancellations.py`):
+    - Flows: Flow B end to end, with the exact summary and payload, the claim row and its idempotency key, and NFR2 counts. Full Flow H (claim → cancel, no slot leak). Two consecutive claims. Flow I: handoff at confirmation → escalated, no write, no `pending_action`.
+    - Approval rules: a skipped estimate needs approval; the injuries / ≥ $10,000 / $9,999 thresholds.
+    - Confirmation replies: bare no; other ×2 → decline; the three mixed replies ("yes, but change the location…", "ok, actually the date was the 20th", "confirm but date is 10/19") are edits with no write and a fresh `pending_action_id`; edit-over-LLM-yes; FR48 non-bare is never yes.
+    - Edits: an `effective_date` edit re-quotes; an `injuries` edit now needs approval; a `policy_id` edit re-verifies.
+    - Cancellations: the Flow C summary ($175.55); LAPSED $0.00 with the balance note; the window checks; already-cancelled creates no approval.
+    - Eligibility: not in force, > 365 days, future date, PENDING_CANCELLATION allowed, the liability-only disclaimer.
+    - Duplicates: an unverified duplicate never calls `find_open_claims` and reveals no claim ID; yes still needs confirmation and writes with `allow_duplicate`; no / unrelated leave no claim task.
+    - Injection: three cases (text, LLM output, a write-tool call in `plan_tool`) — no write.
+  - **Unit tests** (`tests/unit/test_write_guard.py`): every FR26 guard condition, the blocked write being an internal error with no DB write, prepare_action's fresh IDs and keys, the FR32 reasons, and deterministic edit detection.

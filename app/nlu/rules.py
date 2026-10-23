@@ -82,6 +82,10 @@ PARTY_RE = re.compile(
     r"pedestrian|single|just me|only me|by myself)\b",
     re.IGNORECASE,
 )
+EXPLICIT_PARTY_RE = re.compile(
+    r"\b(another|other|the other) (car|vehicle|driver|party|truck)\b|\bsomeone (hit|rear)",
+    re.IGNORECASE,
+)
 SOLO_RE = re.compile(r"\b(single|just me|only me|by myself|no other|nobody else)\b", re.IGNORECASE)
 YES_RE = re.compile(r"^\s*(yes|yeah|yep|y|yup|sure|correct|right|there was|i was)\b", re.I)
 NO_RE = re.compile(r"^\s*(no|nope|n|nah|not)\b", re.IGNORECASE)
@@ -156,13 +160,17 @@ def _bool_answers(text: str, asked: Collection[str]) -> dict[str, Any]:
     """Injuries / other party from replies like "No injuries, yes another car"."""
     found: dict[str, Any] = {}
     segments = _segments(text)
+    party_asked = "other_party_involved" in asked
     for segment in segments:
         negated = bool(NEGATION_RE.search(segment))
+        explicit_party = bool(EXPLICIT_PARTY_RE.search(segment))
         if INJURY_RE.search(segment) and "injuries" not in found:
             found["injuries"] = not negated
         elif SOLO_RE.search(segment) and "other_party_involved" not in found:
             found["other_party_involved"] = False
-        elif PARTY_RE.search(segment) and "other_party_involved" not in found:
+        elif (
+            explicit_party or (party_asked and PARTY_RE.search(segment))
+        ) and "other_party_involved" not in found:
             found["other_party_involved"] = not negated
     bool_slots = [s for s in ("injuries", "other_party_involved") if s in asked]
     bare_answers = [s for s in segments if YES_RE.match(s) or NO_RE.match(s)]

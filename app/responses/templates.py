@@ -274,3 +274,130 @@ def next_task_offer(intent: str, source: str) -> str:
 
 def retry_write_reask() -> str:
     return "Before we continue: should I retry your approved request? Reply 'retry' or 'no'."
+
+
+APPROVAL_REASON_TEXT = {
+    "injuries_reported": "injuries were reported",
+    "high_damage_estimate": "the damage estimate is $10,000 or more",
+    "damage_estimate_unknown": "there's no damage estimate yet",
+}
+REASON_TEXT = {
+    "sold_vehicle": "sold vehicle",
+    "switching_provider": "switching provider",
+    "cost": "cost",
+    "no_longer_needed": "no longer needed",
+    "other": "other",
+}
+
+
+def yes_no(value: Any) -> str:
+    return "Yes" if value else "No"
+
+
+def restated(iso: str | None) -> str:
+    """ISO date plus the long form, e.g. `2026-10-21 (October 21, 2026)` (FR28)."""
+    return f"{iso} ({human_date(iso)})" if iso else "unknown"
+
+
+def claim_summary(
+    payload: Mapping[str, Any],
+    snapshot: Mapping[str, Any],
+    *,
+    approval_reasons: Sequence[str],
+    no_collision: bool,
+    duplicate_of: str | None,
+    feedback: Sequence[str] = (),
+) -> str:
+    police = payload.get("police_report_number") or "none"
+    lines = [*feedback, "Here's your claim summary:"]
+    lines += [
+        f"• Policy: {payload.get('policy_id')} ({vehicle(snapshot)})",
+        f"• Date: {restated(payload.get('incident_date'))}  "
+        f"• Location: {payload.get('incident_location')}",
+        f"• Description: {payload.get('incident_description')}",
+        f"• Injuries: {yes_no(payload.get('injuries'))}  "
+        f"• Other party: {yes_no(payload.get('other_party_involved'))}  "
+        f"• Estimate: {money(payload.get('estimated_damage_usd'))}  • Police report: {police}",
+    ]
+    if no_collision:
+        lines.append(NO_COLLISION_NOTE)
+    if duplicate_of:
+        lines.append(f"Note: this will be filed even though claim {duplicate_of} is open.")
+    if approval_reasons:
+        why = " and ".join(APPROVAL_REASON_TEXT.get(r, r) for r in approval_reasons)
+        lines.append(
+            f"Because {why}, a support specialist will review this claim before it's filed."
+        )
+    lines.append("Shall I submit this claim? (yes / no / edit)")
+    return "\n".join(lines)
+
+
+def cancellation_summary(
+    payload: Mapping[str, Any],
+    quote: Mapping[str, Any],
+    snapshot: Mapping[str, Any],
+    feedback: Sequence[str] = (),
+) -> str:
+    premium = money(float(snapshot.get("annual_premium_usd") or 0))
+    refund = money_exact(float(quote.get("refund_estimate_usd", 0)))
+    fee = money(float(quote.get("fee_usd", 0)))
+    effective = restated(payload.get("effective_date"))
+    reason = REASON_TEXT.get(str(payload.get("reason")), payload.get("reason"))
+    lines = [
+        *feedback,
+        f"Cancelling {payload.get('policy_id')} effective {effective} (reason: {reason}).",
+        f"Estimated refund: {refund} (pro-rated for {quote.get('remaining_days')} of "
+        f"{quote.get('term_days')} days on a {premium} premium, minus {fee} cancellation fee).",
+    ]
+    if snapshot.get("status") == "LAPSED":
+        lines.append("Any outstanding balance will be reviewed by a specialist.")
+    lines.append("A support specialist will review this request before it's processed.")
+    lines.append("Do you want to submit this cancellation request? (yes / no / edit)")
+    return "\n".join(lines)
+
+
+def confirmation_reask(action_type: str) -> str:
+    noun = "claim" if action_type == "create_claim" else "cancellation request"
+    return f"Sorry, I didn't catch that. Shall I submit this {noun}? Please reply yes, no, or edit."
+
+
+def declined() -> str:
+    return f"Okay, I won't submit it. {more_help()}"
+
+
+def specialist_note(comment: str | None) -> str:
+    return f' Note from specialist: "{comment}"' if comment else ""
+
+
+def claim_created(claim_id: str, next_steps: str, approved: bool, comment: str | None) -> str:
+    lead = "Your claim was approved and has been filed." if approved else ""
+    body = f"Your claim {claim_id} has been filed. {next_steps}"
+    if lead:
+        body = f"{lead} Claim number: {claim_id}. {next_steps}"
+    return f"{body}{specialist_note(comment)} {more_help()}"
+
+
+def cancel_completed(
+    policy_id: str, effective_date: str, cancellation_id: str, refund: float, comment: str | None
+) -> str:
+    return (
+        f"Your cancellation was approved. Policy {policy_id} will be cancelled effective "
+        f"{effective_date}. Confirmation: {cancellation_id}. Estimated refund "
+        f"{money_exact(refund)} within 7–10 business days.{specialist_note(comment)} {more_help()}"
+    )
+
+
+def write_not_eligible(action_type: str) -> str:
+    noun = "claim" if action_type == "create_claim" else "cancellation"
+    return (
+        f"We couldn't complete your {noun} because the policy is no longer eligible for it. "
+        f"Please call {phone()} and a specialist can help."
+    )
+
+
+def duplicate_at_write(claim_id: str | None) -> str:
+    existing = f" ({claim_id})" if claim_id else ""
+    return (
+        f"There's already an open claim{existing} for that incident date, so I didn't file a new "
+        f"one. If you'd still like to file, please start the claim again or call {phone()}."
+    )

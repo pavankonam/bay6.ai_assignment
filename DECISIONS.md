@@ -293,3 +293,46 @@ Choices the PRD (`docs/PRD.md`) does not dictate: library versions, ambiguities,
 - **Context:** Flow H continues from a completed Flow B claim. Claim submission arrives in M4.
 - **Decision:** M3 tests the same mechanics with status → cancellation: identity is carried over and only the date and reason are asked. M4 adds the full Flow B → cancellation test.
 - **Why:** The milestone order puts writes after understanding.
+
+---
+
+## M4: Claims, cancellations, confirmation
+
+### D-044 Nodes receive `RunnableConfig` (for the FR27 idempotency key)
+- **Context:** FR27 builds `idempotency_key` from `thread_id`, which lives in the run config, not in state. LangGraph 1.2.16 injects `config` only when the node callable's own signature declares a parameter annotated `RunnableConfig` (verified in `langgraph/_internal/_runnable.py`). `functools.wraps` would hide that parameter.
+- **Decision:** The `graph_node` wrapper declares `config: RunnableConfig` and passes it to node functions that take two parameters. It does not use `functools.wraps`; it copies the name and doc itself and exposes `node_fn`.
+- **Why:** This is the documented injection mechanism of the installed version, so node code never needs to reach for globals to find the thread.
+
+### D-045 Code-invoked writes are recorded as an audit tool-call pair
+- **Decision:** `execute_write_action` appends an `AIMessage` with the write's `tool_calls` plus a `ToolMessage` holding the result envelope as `artifact`.
+- **Why:** The thread's history then shows exactly what was written and with which idempotency key. These messages are never customer-visible (FR53) and never reach the LLM (§8.10 history filter).
+
+### D-046 Confirmation summary content (FR28, FR31, FR35)
+- **Decision:**
+  - Dates are restated as `2026-10-21 (October 21, 2026)`.
+  - Any approval requirement is explained ("Because injuries were reported, a support specialist will review this claim before it's filed.").
+  - A liability-only policy gets the FR31 collision disclaimer, and an `allow_duplicate` claim names the open claim.
+  - A LAPSED cancellation adds "Any outstanding balance will be reviewed by a specialist." Every cancellation summary says it will be reviewed (FR36).
+  - Any invalid edit feedback is shown above the summary.
+- **Why:** FR28 requires the full payload "including restated dates, the quote and any approval requirement".
+
+### D-047 Confirmation classification details (FR29)
+- **Decision:**
+  - A first `other` re-asks only the question ("Sorry, I didn't catch that. Shall I submit this claim? …"). It does not repeat the whole summary, and `confirmation_reask_count` stays at 1 until a new summary resets it.
+  - The `ConfirmationResult` call's context lists the summary **field names** only, never their values. The values are customer text, and NFR5 keeps customer text out of the system role; the model sees the summary in the history.
+  - Deterministic edit detection covers policy numbers and the action's date field. Free-text edits such as the location need the LLM. In fallback mode they are treated as `other` (re-ask), never as `yes`.
+  - An edit is applied through `invalidate_on_edit`, which always discards the pending action, even if every proposed value fails validation; the next summary shows the feedback.
+- **Why:** This follows FR29, FR29a and FR48.
+
+### D-048 `DUPLICATE_CLAIM` at write time
+- **Context:** The validation-time FR33 check makes this case a race; for example, another thread filed a claim after the summary was shown. `route_write` sends it to `respond`.
+- **Decision:** It becomes `last_outcome = CLAIM_NOT_FILED_DUPLICATE`, with a template naming the existing claim and saying how to file anyway.
+- **Why:** This is defense in depth (§8.6). Re-asking at that point would need a second confirmation loop the PRD doesn't define.
+
+### D-049 Status writers follow §8.3 exactly
+- **Decision:** `handle_confirmation` and `invalidate_on_edit` do not write `status`. The next node sets it (`ask_confirmation`, `validate_slots`, `respond`, `escalate`, `announce_approval` or `execute_write_action`).
+- **Why:** These two nodes aren't listed as writers in the §8.3 status-transition table.
+
+### D-050 Cancellation `approval_reasons`
+- **Decision:** A cancellation's `pending_action.approval_reasons` is `["cancellation_requires_review"]`.
+- **Why:** FR36 always requires approval, but the PRD names reason codes only for claims (FR32). The reviewer payload needs a non-empty risk flag.
