@@ -18,8 +18,11 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
+from app.admin import build_admin_router
+from app.approvals.reconcile import reconcile
 from app.config import get_settings
 from app.db import get_engine
+from app.deps import Runtime
 from app.graph.builder import build_graph
 from app.graph.checkpointer import close_checkpointer, open_checkpointer
 from app.observability.logging import configure_logging, get_logger
@@ -83,14 +86,6 @@ def _serialize(value: Any) -> Any:
     return json.loads(json.dumps(value, default=str))
 
 
-def get_runtime(request: Request) -> SupportRuntime:
-    rt: SupportRuntime = request.app.state.runtime
-    return rt
-
-
-Runtime = Annotated[SupportRuntime, Depends(get_runtime)]
-
-
 def create_app(runtime_factory: Callable[[], SupportRuntime] | None = None) -> FastAPI:
     settings = get_settings()
 
@@ -111,6 +106,7 @@ def create_app(runtime_factory: Callable[[], SupportRuntime] | None = None) -> F
             app.state.runtime = SupportRuntime(build_graph(saver))
         else:
             app.state.runtime = runtime_factory()
+        reconcile(app.state.runtime)  # FR43a: before the API accepts requests
         yield
         if saver is not None:
             close_checkpointer(saver)
@@ -208,6 +204,8 @@ def create_app(runtime_factory: Callable[[], SupportRuntime] | None = None) -> F
     @app.get("/metrics", response_class=PlainTextResponse)
     def get_metrics() -> str:
         return metrics.render()
+
+    app.include_router(build_admin_router(require_admin))
 
     return app
 

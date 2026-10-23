@@ -18,7 +18,7 @@ Each milestone commit is tagged `checkpoint_mN`. A commit cannot contain its own
 | M6: Error handling + responses | ✅ Passed | 630 / 630 | 96.3% / 96.3% | `85bfbfb` | `checkpoint_m6` |
 | M7: API + CLI | ✅ Passed | 656 / 656 | 96.3% / 96.3% | `c9d8bd7` | `checkpoint_m7` |
 | M8: Docs (core sign-off) | ✅ Passed | 657 / 657 | 96.3% / 96.3% | `2ddc749` | `checkpoint_m8` |
-| M9: Hardening | ⏳ Not started | | | | |
+| M9: Hardening | ✅ Passed | 671 / 671 | 96.5% / 96.5% | _pending_ | `checkpoint_m9` |
 | M10: Evaluation | ⏳ Not started | | | | |
 
 ## M0: Scaffold
@@ -142,3 +142,22 @@ Each milestone commit is tagged `checkpoint_mN`. A commit cannot contain its own
   - The interactive walkthrough (`make run-offline` + `.venv/bin/support chat` + `support approvals list`) works.
   - `git status` is clean afterwards: the databases are ignored.
 - **Deliverables:** `README.md`, `docs/design-decisions.md` (the 16 §8.9 decisions, what is sent to the LLM vendor, the lockout DoS tradeoff, expiry), `scripts/demo.py`, and a regenerated `docs/graph.md`.
+
+## M9: Hardening
+- **Exit criteria (PRD §12):** the hardening integration tests in §8.12 pass; the crash-before-resume test passes.
+- **Result:**
+  - **Integration tests** (`tests/integration/test_hardening.py`):
+    - **Multi-intent queue (FR10):** "check my status and cancel it November 1 because I'm switching providers" → status, then the queued cancellation asks for neither the date nor the reason. Also the decline path, and queueing from LLM output.
+    - **FR53a:** a retried "yes" at confirmation writes one claim with one turn; a retried slot-filling message stores one record and runs one turn; also over the API.
+    - **FR19a:**
+      - Five failures across threads lock the policy.
+      - The victim with the correct DOB is refused with the phone message.
+      - Attempts made while locked don't extend the window.
+      - The unlock endpoint (401 without the token) restores verification.
+      - The window ages out.
+    - **FR43a:**
+      - Crash between the decision update and the resume: the DB is decided, the process dies, and reconciliation after a restart resumes it exactly once (idempotent on a second run).
+      - Startup reconciliation runs in the lifespan, and the admin endpoint requires a token.
+      - Reconciliation repairs a stuck interrupt and expires and resumes a stale approval.
+    - **NFR10:** the purge removes the thread from both DBs (rows, and no raw DOB bytes left in `checkpoints.db`), skips a thread with a pending approval, keeps the business records, and trims old verification failures.
+  - **CLI tests:** `support approvals reconcile`, `support policy unlock` and `support purge` against the live API.

@@ -472,3 +472,49 @@ Choices the PRD (`docs/PRD.md`) does not dictate: library versions, ambiguities,
 ### D-071 Python version verified from a clean clone
 - **Decision:** The M8 walkthrough was run from a fresh `git clone` on **Python 3.11.9**: `make install`, `make demo`, `make check` (657 tests ×2), and `make run-offline` + `support chat`. The development environment is 3.13.6.
 - **Why:** This confirms that `requires-python >= 3.11` and the lock file (generated on 3.13) work on the minimum supported version.
+
+---
+
+## M9: Hardening
+
+### D-072 Multi-intent queue (FR10)
+- **Decision:**
+  - When the primary intent is a confident supported intent, `understand` appends every other supported intent in the message to `intent_queue` as `{intent, slots}`. The slots are the candidates attributed to that intent: the LLM's `task_slots[intent]` plus deterministic date mentions whose role belongs to that intent.
+  - When the active task reaches a terminal outcome, `offer_next_task` offers queued tasks first, then suspended ones.
+  - "Yes" restores the slots, which `validate_slots` re-validates like new values.
+  - The Core MVP note ("I can help with your other request once this one is done") has been replaced by the queue.
+- **Why:** FR10. Queued tasks come from the same message, so they go before older suspended work.
+
+### D-073 Per-policy lockout (FR19a)
+- **Decision:**
+  - `verify_policyholder` returns `{"verified": false, "locked": true}` without checking the DOB when the submitted policy ID has at least `POLICY_VERIFY_LOCK_FAILURES` failures within `POLICY_VERIFY_LOCK_HOURS`.
+  - `process_tool_result` records each failure under the **submitted** policy ID (with the thread ID), except while the policy is locked, so the window can't be extended.
+  - The customer sees the FR20 message plus "For your security, please call 1-800-555-0199 to continue."
+  - `verification_lockouts_total` is incremented when a failure locks a policy.
+  - `POST /admin/policies/{id}/unlock` (CLI `support policy unlock`) deletes that policy's failure rows and logs at WARNING.
+- **Why:** FR19a. Unknown policy IDs collect failures the same way, so the `locked` flag can't be used to enumerate policies.
+
+### D-074 Reconciliation (FR43a)
+- **Decision:** `reconcile(runtime)` runs in the FastAPI lifespan before requests are served, and via `POST /admin/approvals/reconcile` (CLI `support approvals reconcile`). It holds each thread's lock while it:
+  1. runs `ensure_interrupt` for any pending approval whose thread sits at `human_approval` with no interrupt;
+  2. expires pending approvals past their TTL;
+  3. resumes every approval with `resume_status='pending'`.
+  
+  Threads stuck before the interrupt are found through their approval rows, which `announce_approval` always inserts before the interrupt can run.
+- **Why:** This covers all three FR43a cases without scanning every checkpoint, and FR27 idempotency makes a repeated resume safe (tested).
+
+### D-075 Message idempotency (FR53a)
+- **Decision:** With a `client_message_id`, `SupportRuntime.post_message` returns the stored response for `(thread_id, client_message_id)`. It checks once before taking the lock and again under it, so concurrent retries are safe. Otherwise it processes the message and stores the response in `processed_messages` (UNIQUE pair).
+- **Why:** FR53a. Checking under the lock closes the race between two identical retries.
+
+### D-076 Retention purge (NFR10)
+- **Decision:**
+  - A thread's age is its latest checkpoint timestamp (from `SqliteSaver.list(None)`).
+  - For each thread older than N days, holding its lock and skipping any thread with an interrupt or a pending approval, the purge runs `checkpointer.delete_thread(thread_id)` and deletes the thread's `approvals`, `thread_side_messages` and `processed_messages`. It also removes `verification_failures` older than N days. Claims and cancellations are kept.
+  - Both databases use `PRAGMA secure_delete=ON`, and the checkpoint WAL is truncated after a purge.
+- **Why:** NFR10 requires that "no raw DOB for a purged thread remains in either DB". Without `secure_delete`, SQLite leaves deleted rows in free pages; the test scans the raw checkpoint file bytes.
+
+### D-077 Shared FastAPI dependency module
+- **Context:** With `from __future__ import annotations`, FastAPI evaluates dependency annotations against module globals. A dependency function defined inside a router factory was silently treated as a query parameter (this surfaced as a 422 in a test).
+- **Decision:** `get_runtime` and the `Runtime` alias live in `app/deps.py` and are used by `main.py` and `admin.py`.
+- **Why:** This is how FastAPI resolves postponed annotations in the installed version.

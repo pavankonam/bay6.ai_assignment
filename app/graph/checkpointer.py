@@ -17,6 +17,7 @@ def open_checkpointer(path: Path | str | None = None) -> SqliteSaver:
     conn = sqlite3.connect(str(db_path), check_same_thread=False)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout=5000")
+    conn.execute("PRAGMA secure_delete=ON")  # NFR10: purged checkpoints are overwritten
     saver = SqliteSaver(conn)
     saver.setup()
     return saver

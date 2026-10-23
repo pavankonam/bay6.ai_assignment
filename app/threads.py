@@ -6,9 +6,10 @@ from collections.abc import Sequence
 from typing import Any
 
 from langchain_core.messages import AnyMessage, HumanMessage
+from sqlalchemy import delete
 from sqlmodel import col, select
 
-from app.approvals.models import ThreadSideMessage
+from app.approvals.models import ProcessedMessage, ThreadSideMessage
 from app.config import utcnow_iso
 from app.db import session_scope
 from app.graph.messages import is_customer_visible, text_of
@@ -72,3 +73,39 @@ def merged_history(thread_id: str, messages: Sequence[AnyMessage]) -> list[dict[
         )
     entries.sort(key=lambda e: (e[0], e[1], e[2]))
     return [e[3] for e in entries]
+
+
+def stored_response(thread_id: str, client_message_id: str) -> dict[str, Any] | None:
+    """FR53a: the stored response for a retried `(thread_id, client_message_id)`."""
+    with session_scope() as session:
+        row = session.exec(
+            select(ProcessedMessage)
+            .where(ProcessedMessage.thread_id == thread_id)
+            .where(ProcessedMessage.client_message_id == client_message_id)
+        ).first()
+        return dict(row.response) if row is not None else None
+
+
+def store_response(thread_id: str, client_message_id: str, result: Any) -> None:
+    response = {
+        "messages": list(result.messages),
+        "status": result.status,
+        "pending_approval_id": result.pending_approval_id,
+        "side": result.side,
+    }
+    with session_scope() as session:
+        session.add(
+            ProcessedMessage(
+                thread_id=thread_id,
+                client_message_id=client_message_id,
+                response=response,
+                created_at=utcnow_iso(),
+            )
+        )
+
+
+def delete_thread_rows(thread_id: str) -> None:
+    """NFR10 purge: side messages and processed-message records for one thread."""
+    with session_scope() as session:
+        for model in (ThreadSideMessage, ProcessedMessage):
+            session.exec(delete(model).where(col(model.thread_id) == thread_id))

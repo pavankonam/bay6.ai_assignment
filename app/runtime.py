@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
+from datetime import timedelta
 from typing import Any
 
 from langchain_core.messages import AIMessage, AnyMessage
@@ -18,13 +19,20 @@ from langgraph.types import Command, StateSnapshot
 from app.approvals.service import STATUS_TO_DECISION, ApprovalsService, ApprovalView
 from app.approvals.service import approvals_service as default_approvals
 from app.concurrency import ThreadLocks, thread_locks
-from app.config import get_settings
+from app.config import get_settings, utcnow
 from app.graph.builder import CompiledGraph
 from app.graph.messages import ai, human, text_of
 from app.observability.logging import get_logger
 from app.observability.metrics import metrics
 from app.responses import templates
-from app.threads import add_side_message, merged_history
+from app.security import purge_failures_older_than
+from app.threads import (
+    add_side_message,
+    delete_thread_rows,
+    merged_history,
+    store_response,
+    stored_response,
+)
 
 log = get_logger(__name__)
 MAX_MESSAGE_CHARS = 2000
@@ -96,7 +104,7 @@ class SupportRuntime:
         self.approvals = approvals or default_approvals
         self.locks = locks or thread_locks
 
-    # --- helpers --------------------------------------------------------------------------------
+    # --- helpers ---------------------------------------------------------------------------------
 
     def snapshot(self, thread_id: str) -> StateSnapshot:
         return self.graph.get_state(_config(thread_id))
@@ -170,7 +178,7 @@ class SupportRuntime:
             self._invoke(approval.thread_id, Command(resume=decision))
         self.approvals.mark_resumed(approval.approval_id)
 
-    # --- customer messages ----------------------------------------------------------------------
+    # --- customer messages -----------------------------------------------------------------------
 
     def create_thread(self) -> str:
         return str(uuid.uuid4())
@@ -178,21 +186,35 @@ class SupportRuntime:
     def post_message(
         self, thread_id: str, content: str, client_message_id: str | None = None
     ) -> MessageResult:
-        """Section 8.8 customer message handling. `client_message_id` is accepted and ignored
-        in the core build (FR53a is a Hardening item)."""
+        """Section 8.8 customer message handling, with `client_message_id` idempotency (FR53a)."""
         if len(content) > MAX_MESSAGE_CHARS:
             raise MessageTooLongError(f"Message exceeds {MAX_MESSAGE_CHARS} characters")
+        if client_message_id:
+            stored = stored_response(thread_id, client_message_id)
+            if stored is not None:  # FR53a: a retried request never runs a second turn
+                return MessageResult(**stored)
         with self.locks.hold(thread_id):
-            self.ensure_interrupt(thread_id)  # step 2a
-            snapshot = self.snapshot(thread_id)
-            approval_id = _interrupt_approval_id(snapshot)
-            if snapshot.next == ("human_approval",) and approval_id:
-                return self._message_while_interrupted(thread_id, content, approval_id)
-            before = len(snapshot.values.get("messages") or [])
-            self._invoke(thread_id, {"messages": [human(content)]})
-            new = _agent_texts(self._messages(thread_id)[before:])
-            status, pending = self._status(thread_id)
-            return MessageResult(new, status, pending)
+            if client_message_id:  # re-check under the lock (concurrent retries)
+                stored = stored_response(thread_id, client_message_id)
+                if stored is not None:
+                    return MessageResult(**stored)
+            result = self._handle_message(thread_id, content)
+            if client_message_id:
+                store_response(thread_id, client_message_id, result)
+            return result
+
+    def _handle_message(self, thread_id: str, content: str) -> MessageResult:
+        """Steps 2–4 of Section 8.8; the caller holds the thread lock."""
+        self.ensure_interrupt(thread_id)  # step 2a
+        snapshot = self.snapshot(thread_id)
+        approval_id = _interrupt_approval_id(snapshot)
+        if snapshot.next == ("human_approval",) and approval_id:
+            return self._message_while_interrupted(thread_id, content, approval_id)
+        before = len(snapshot.values.get("messages") or [])
+        self._invoke(thread_id, {"messages": [human(content)]})
+        new = _agent_texts(self._messages(thread_id)[before:])
+        status, pending = self._status(thread_id)
+        return MessageResult(new, status, pending)
 
     def _message_while_interrupted(
         self, thread_id: str, content: str, approval_id: str
@@ -234,7 +256,48 @@ class SupportRuntime:
             "messages": merged_history(thread_id, snapshot.values.get("messages") or []),
         }
 
-    # --- reviewer decisions ---------------------------------------------------------------------
+    # --- retention (NFR10) -----------------------------------------------------------------------
+
+    def thread_activity(self) -> dict[str, str]:
+        """Latest checkpoint timestamp per thread id."""
+        latest: dict[str, str] = {}
+        for item in self.graph.checkpointer.list(None):  # type: ignore[union-attr]
+            thread_id = str(item.config["configurable"]["thread_id"])
+            stamp = str(item.checkpoint["ts"])
+            if stamp > latest.get(thread_id, ""):
+                latest[thread_id] = stamp
+        return latest
+
+    def purge(self, older_than_days: int) -> dict[str, Any]:
+        """Delete threads inactive for more than N days from both databases, skipping threads
+        with a pending approval or interrupt. Mock business records are kept."""
+        cutoff = (utcnow() - timedelta(days=older_than_days)).isoformat()
+        purged: list[str] = []
+        skipped: list[str] = []
+        for thread_id, stamp in self.thread_activity().items():
+            if stamp >= cutoff:
+                continue
+            with self.locks.hold(thread_id):
+                snapshot = self.snapshot(thread_id)
+                pending = [
+                    a for a in self.approvals.for_threads([thread_id]) if a.status == "pending"
+                ]
+                if snapshot.interrupts or snapshot.next == ("human_approval",) or pending:
+                    skipped.append(thread_id)
+                    continue
+                self.graph.checkpointer.delete_thread(thread_id)  # type: ignore[union-attr]
+                self.approvals.delete_for_thread(thread_id)
+                delete_thread_rows(thread_id)
+                purged.append(thread_id)
+        if purged:
+            conn = getattr(self.graph.checkpointer, "conn", None)
+            if conn is not None:
+                conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        failures = purge_failures_older_than(older_than_days)
+        log.warning("purge_completed", purged=len(purged), skipped=len(skipped))
+        return {"purged": purged, "skipped": skipped, "verification_failures_removed": failures}
+
+    # --- reviewer decisions ----------------------------------------------------------------------
 
     def decide(
         self, approval_id: str, decision: str, reviewer_id: str, comment: str | None

@@ -30,6 +30,13 @@ def verified_this_turn(state: Mapping[str, Any]) -> bool:
     return False
 
 
+def policy_lock_reported(state: Mapping[str, Any]) -> bool:
+    result = state.get("tool_result") or {}
+    return result.get("tool") == "verify_policyholder" and bool(
+        (result.get("data") or {}).get("locked")
+    )
+
+
 def slots_to_ask(state: Mapping[str, Any]) -> list[str]:
     missing = list(state.get("missing_slots") or [])
     if any(s in IDENTITY_SLOTS for s in missing):
@@ -58,6 +65,8 @@ def ask_for_info(state: Mapping[str, Any]) -> dict[str, Any]:
     parts.extend(shown)
     if verified_this_turn(state):
         parts.append("Thanks, you're verified.")
+    if policy_lock_reported(state):
+        parts.append(templates.policy_locked())
     if (
         asked == ["dob"]
         and slots.get("policy_id")

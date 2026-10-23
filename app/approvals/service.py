@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import update
+from sqlalchemy import delete, update
 from sqlalchemy.dialects.sqlite import insert
 from sqlmodel import col, select
 
@@ -141,6 +141,16 @@ class ApprovalsService:
             if status is None or shown == status:
                 result.append({**view.to_dict(), "status": shown})
         return result
+
+    def list_views(self) -> list[ApprovalView]:
+        with session_scope() as session:
+            rows = session.exec(select(Approval).order_by(col(Approval.created_at))).all()
+            return [_view(r) for r in rows]
+
+    def delete_for_thread(self, thread_id: str) -> int:
+        statement = delete(Approval).where(col(Approval.thread_id) == thread_id)
+        with session_scope() as session:
+            return int(session.exec(statement).rowcount or 0)
 
     def needing_resume(self) -> list[ApprovalView]:
         with session_scope() as session:

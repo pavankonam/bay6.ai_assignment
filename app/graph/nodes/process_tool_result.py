@@ -6,12 +6,14 @@ from collections.abc import Mapping
 from typing import Any
 
 from langchain_core.messages import ToolMessage
+from langchain_core.runnables import RunnableConfig
 
-from app.graph.nodes.base import graph_node
+from app.graph.nodes.base import graph_node, thread_id_of
 from app.graph.routing import INACTIVE_POLICY_STATUSES
 from app.graph.state import ErrorInfo
 from app.observability.logging import get_logger
 from app.responses.templates import VERIFICATION_FAILED
+from app.security import record_failure
 from app.tools import errors
 from app.tools.errors import RETRYABLE_CODES
 
@@ -62,7 +64,7 @@ def _envelope(message: ToolMessage | None) -> tuple[str, dict[str, Any]]:
 
 
 @graph_node("process_tool_result")
-def process_tool_result(state: Mapping[str, Any]) -> dict[str, Any]:
+def process_tool_result(state: Mapping[str, Any], config: RunnableConfig) -> dict[str, Any]:
     tool, envelope = _envelope(_last_tool_message(state))
     result = {"tool": tool, **envelope}
     update: dict[str, Any] = {"tool_result": result}
@@ -102,6 +104,9 @@ def process_tool_result(state: Mapping[str, Any]) -> dict[str, Any]:
                 }
             )
         else:
+            submitted = str(slots.get("policy_id") or "")
+            if submitted and not data.get("locked"):
+                record_failure(submitted, thread_id_of(config))  # FR19a
             # FR20a: clear identity so new values are accepted, generic feedback (FR20).
             slots.pop("policy_id", None)
             slots.pop("dob", None)

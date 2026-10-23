@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import contextlib
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import date
 from typing import Any
 
@@ -16,7 +16,7 @@ from app.config import get_settings, today
 from app.graph.lifecycle import SUSPEND_RESET, identity_only, task_only
 from app.graph.messages import NLU, annotate, last_asked_slots, latest_human_text
 from app.graph.nodes.base import graph_node
-from app.graph.state import INTENTS, SuspendedTask
+from app.graph.state import INTENTS, QueuedTask, SuspendedTask
 from app.llm import build_history, structured_call
 from app.nlu.redaction import redactor_for
 from app.nlu.rules import RuleContext, is_coverage_question, keyword_intents, rule_understand
@@ -89,6 +89,24 @@ def _task_candidates(
         except ValueError:
             task.pop(date_slot)
     return task, errors
+
+
+def _queue_others(
+    state: Mapping[str, Any],
+    others: Sequence[str],
+    result: UnderstandResult,
+    dates: DateAssignment,
+) -> list[QueuedTask]:
+    """FR10: queue the other supported intents with the slot candidates attributed to them."""
+    queue: list[QueuedTask] = list(state.get("intent_queue") or [])
+    queued: set[str] = {task["intent"] for task in queue}
+    for intent in others:
+        if intent in queued:
+            continue
+        slots, _errors = _task_candidates(intent, result, dates)
+        queue.append({"intent": intent, "slots": slots})  # type: ignore[typeddict-item]
+        queued.add(intent)
+    return queue
 
 
 def _mention_context(mention: DateMention) -> dict[str, Any]:
@@ -200,6 +218,8 @@ def understand(state: Mapping[str, Any]) -> dict[str, Any]:
         "messages": annotate(state, **{NLU: nlu}),
     }
     confident = confidence >= get_settings().INTENT_CONFIDENCE_THRESHOLD
+    if primary in INTENTS and confident and other_intents:
+        update["intent_queue"] = _queue_others(state, other_intents, result, dates)
     if primary in INTENTS and confident:
         if active is None:
             update.update({"active_intent": primary, "phase": "collect"})

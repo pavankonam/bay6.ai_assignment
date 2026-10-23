@@ -101,7 +101,17 @@ Things to type in `support chat`:
 | Duplicate claim | `I need to file a claim, my car was hit on 10/15. POL-100006 born 2/28/1970` |
 | Lapsed policy | `status of POL-100002 please, dob 9/30/1990` |
 | Handoff | `let me talk to a person` (works at any point, including at a summary) |
+| Multi-request message | `check my status and cancel it November 1 because I'm switching providers` (the cancellation is offered next, with its date and reason already filled) |
 | Write failure + retry | Set `MOCK_FAULTS=true` in terminal 1, then cancel `POL-999501` (DOB `1/1/2000`), approve it, and reply `retry` or `no` |
+
+Operator commands:
+
+```bash
+.venv/bin/support approvals reconcile          # finish interrupted resumes / expire stale approvals
+.venv/bin/support policy unlock POL-100001     # lift a per-policy verification lockout
+.venv/bin/support purge --older-than-days 30   # retention purge (both databases)
+.venv/bin/support graph draw                   # regenerate docs/graph.md (no API needed)
+```
 
 Reviewer and admin commands send `REVIEWER_TOKEN` / `ADMIN_TOKEN` (default `change-me`, set them in `.env`). The API listens on `SUPPORT_API_URL` (default `http://127.0.0.1:8000`). `make reset` deletes `data/*.db` and re-seeds.
 
@@ -206,10 +216,13 @@ tests/                 unit/, integration/, fixtures/fake_llm.py
 | `GET /threads/{id}/state` | `X-Admin-Token` | Raw graph state for debugging |
 | `GET /approvals?status=pending\|approved\|rejected\|expired` | `X-Reviewer-Token` | Approval queue with customer (masked DOB), payload, risk flags, summary |
 | `POST /approvals/{id}/decision` | `X-Reviewer-Token` | `{"decision": "approve"\|"reject", "reviewer_id", "comment"?}`. 409 if the approval is no longer pending (or has expired: the customer is then offered a restart). |
+| `POST /admin/approvals/reconcile` | `X-Admin-Token` | Resume decided/expired approvals, repair stuck interrupts (also runs at startup) |
+| `POST /admin/policies/{policy_id}/unlock` | `X-Admin-Token` | Lift the per-policy verification lockout after phone verification |
+| `POST /admin/purge?older_than_days=N` | `X-Admin-Token` | Delete conversation data older than N days from both DBs (skips pending approvals) |
 | `GET /healthz` | — | `{"status": "ok"\|"degraded"}` |
 | `GET /metrics` | — | Prometheus text counters (NFR17) |
 
-**Security note (MVP):** the `thread_id` (a UUID4) acts as a **bearer secret** for the customer endpoints. Real customer authentication is a non-goal (A9). Brute force is limited by per-thread lockout (3 failed verifications), per-IP rate limiting and, as hardening, a per-policy lockout. Identity verification is policy number + DOB against mock data only.
+**Security note (MVP):** the `thread_id` (a UUID4) acts as a **bearer secret** for the customer endpoints. Real customer authentication is a non-goal (A9). Brute force is limited by per-thread lockout (3 failed verifications), a per-policy lockout across threads (5 failures in 24 h; the window is not extended by further attempts, and an operator can unlock), and per-IP rate limiting. Identity verification is policy number + DOB against mock data only.
 
 ## Mock data
 

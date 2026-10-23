@@ -141,10 +141,6 @@ def okay_more_help() -> str:
     return f"Okay. {more_help()}"
 
 
-def other_request_later() -> str:
-    return "I can help with your other request once this one is done."
-
-
 def date_ambiguity(ambiguity: Mapping[str, Any]) -> str:
     dates = [str(d) for d in ambiguity.get("dates", [])]
     listed = " and ".join(dates)
@@ -459,3 +455,7 @@ def write_withdrawn() -> str:
         "Okay, I've withdrawn your request, so nothing was submitted. If you need anything "
         f"else, please call {phone()}."
     )
+
+
+def policy_locked() -> str:
+    return f"For your security, please call {phone()} to continue."

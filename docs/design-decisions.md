@@ -41,7 +41,7 @@ Before telling a customer their request was withdrawn, the lookup runs again. If
 ## 6. Idempotency at three layers
 1. **Write keys.** `idempotency_key = sha256(thread_id + pending_action_id + action_type + canonical_json(payload))`, and the payload holds business fields only. A new summary means a new `pending_action_id`, so a resubmission can never replay an old approval or write. A replay with the same key and payload returns the original result, while a different payload returns `CONFLICT`.
 2. **Approval records.** `INSERT … ON CONFLICT(idempotency_key) DO NOTHING`, then `SELECT`.
-3. **Client message IDs** (Hardening, M9): a retried POST with the same `client_message_id` returns the stored response.
+3. **Client message IDs:** a retried POST with the same `client_message_id` returns the stored response.
 
 ## 7. One retry layer
 Automatic retries happen only inside the tool wrapper: tenacity, 2 retries, 0.5 s / 1 s backoff with jitter, and a per-attempt timeout. The graph has no retry edges, so step counts stay bounded.
@@ -120,7 +120,7 @@ These are not sent:
 
 Token usage is logged per call and counted in `llm_tokens_total{node,direction}`. `max_tokens`, the history limits and `MAX_LLM_CALLS_PER_THREAD` cap the cost (NFR3a).
 
-## Per-policy lockout: the DoS tradeoff (FR19a, Hardening/M9)
+## Per-policy lockout: the DoS tradeoff (FR19a)
 A per-policy lockout (5 failed verifications within 24 h → chat verification refused in every thread) stops an attacker from guessing a DOB by opening new threads. The price is that the attacker can **deny chat service to the real policyholder** by deliberately failing 5 times.
 
 Mitigations:

@@ -126,6 +126,10 @@ class MockPolicyService:
     def verify(self, policy_id: str, dob: date) -> dict[str, Any]:
         # Magic IDs are never faulted for verification (Section 8.4.3); random faults may be.
         self.faults.before_call("verify_policyholder", None)
+        from app.security import is_locked
+
+        if is_locked(policy_id):  # FR19a: refused without checking the DOB, in any thread
+            return {"verified": False, "locked": True}
         with session_scope() as session:
             policy = session.get(Policy, policy_id)
             verified = policy is not None and policy.dob == dob

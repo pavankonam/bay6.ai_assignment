@@ -198,3 +198,20 @@ def test_cli_decision_and_api_message_concurrently(live_api: str, attempt: int) 
     body = results["message"]
     if body["status"] == "awaiting_approval":
         assert "still pending" in body["messages"][0]
+
+
+def test_cli_admin_commands(live_api: str) -> None:
+    from app.approvals.service import approvals_service
+
+    _, approval_id = submit_cancellation(live_api)
+    approvals_service.decide(approval_id, "approve", "marcus", None)  # decided, not resumed
+    reconciled = run_cli("approvals", "reconcile")
+    assert reconciled.exit_code == 0, reconciled.output
+    assert "resumed=1 expired=0 repaired_interrupts=0" in reconciled.output
+    assert len(cancellations()) == 1
+    unlocked = run_cli("policy", "unlock", "POL-100001")
+    assert unlocked.exit_code == 0, unlocked.output
+    assert "POL-100001: removed 0 failure(s)" in unlocked.output
+    purged = run_cli("purge", "--older-than-days", "0")
+    assert purged.exit_code == 0, purged.output
+    assert "purged=1 skipped=0" in purged.output

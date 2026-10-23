@@ -23,6 +23,7 @@ def _on_connect(dbapi_conn: sqlite3.Connection, _record: Any) -> None:
     cursor.execute("PRAGMA journal_mode=WAL")
     cursor.execute("PRAGMA busy_timeout=5000")
     cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.execute("PRAGMA secure_delete=ON")  # purged rows are overwritten, not just unlinked
     cursor.close()
 
 

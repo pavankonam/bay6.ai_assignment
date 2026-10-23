@@ -146,6 +146,37 @@ def approvals_decide(
     console.print(f"{result['approval_id']}: {result['status']} (thread {result['thread_status']})")
 
 
+@approvals_app.command("reconcile")
+def approvals_reconcile() -> None:
+    """Resume decided/expired approvals and repair stuck interrupts (FR43a)."""
+    result = _request("POST", "/admin/approvals/reconcile", token="admin")
+    console.print(
+        f"resumed={result['resumed']} expired={result['expired']} "
+        f"repaired_interrupts={result['repaired_interrupts']}"
+    )
+
+
+@policy_app.command("unlock")
+def policy_unlock(policy_id: str) -> None:
+    """Lift the per-policy verification lockout after phone verification (FR19a)."""
+    result = _request("POST", f"/admin/policies/{policy_id}/unlock", token="admin")
+    console.print(f"{result['policy_id']}: removed {result['failures_removed']} failure(s)")
+
+
+@app.command()
+def purge(
+    older_than_days: Annotated[int, typer.Option(help="Retention in days")] = 30,
+) -> None:
+    """Delete conversation data older than N days from both databases (NFR10)."""
+    result = _request(
+        "POST", "/admin/purge", token="admin", params={"older_than_days": older_than_days}
+    )
+    console.print(
+        f"purged={len(result['purged'])} skipped={len(result['skipped'])} "
+        f"verification_failures_removed={result['verification_failures_removed']}"
+    )
+
+
 # --- graph ---------------------------------------------------------------------------------------
 
 
