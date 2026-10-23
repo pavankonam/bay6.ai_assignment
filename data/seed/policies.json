@@ -1,0 +1,362 @@
+[
+  {
+    "policy_id": "POL-100001",
+    "holder_first_name": "Jane",
+    "holder_last_name": "Doe",
+    "dob": "1985-04-12",
+    "status": "ACTIVE",
+    "product": "PERSONAL_AUTO",
+    "vehicle_year": 2022,
+    "vehicle_make": "Toyota",
+    "vehicle_model": "Camry",
+    "vehicle_plate": "ACM-1001",
+    "term_start": "2026-01-01",
+    "term_end": "2026-12-31",
+    "paid_through": "2026-12-31",
+    "annual_premium_usd": 1200.0,
+    "coverages": [
+      {
+        "type": "LIABILITY",
+        "deductible": null
+      },
+      {
+        "type": "COLLISION",
+        "deductible": 500
+      },
+      {
+        "type": "COMPREHENSIVE",
+        "deductible": 250
+      }
+    ],
+    "status_history": [
+      {
+        "status": "ACTIVE",
+        "from": "2026-01-01",
+        "to": null
+      }
+    ],
+    "cancellation_effective_date": null
+  },
+  {
+    "policy_id": "POL-100002",
+    "holder_first_name": "John",
+    "holder_last_name": "Smith",
+    "dob": "1990-09-30",
+    "status": "LAPSED",
+    "product": "PERSONAL_AUTO",
+    "vehicle_year": 2019,
+    "vehicle_make": "Honda",
+    "vehicle_model": "Civic",
+    "vehicle_plate": "ACM-1002",
+    "term_start": "2026-03-01",
+    "term_end": "2027-02-28",
+    "paid_through": "2026-08-31",
+    "annual_premium_usd": 960.0,
+    "coverages": [
+      {
+        "type": "LIABILITY",
+        "deductible": null
+      },
+      {
+        "type": "COLLISION",
+        "deductible": 1000
+      }
+    ],
+    "status_history": [
+      {
+        "status": "ACTIVE",
+        "from": "2026-03-01",
+        "to": "2026-08-31"
+      },
+      {
+        "status": "LAPSED",
+        "from": "2026-09-01",
+        "to": null,
+        "reason": "non-payment"
+      }
+    ],
+    "cancellation_effective_date": null
+  },
+  {
+    "policy_id": "POL-100003",
+    "holder_first_name": "Maria",
+    "holder_last_name": "Garcia",
+    "dob": "1978-01-22",
+    "status": "CANCELLED",
+    "product": "PERSONAL_AUTO",
+    "vehicle_year": 2017,
+    "vehicle_make": "Ford",
+    "vehicle_model": "F-150",
+    "vehicle_plate": "ACM-1003",
+    "term_start": "2026-01-01",
+    "term_end": "2026-12-31",
+    "paid_through": "2026-06-30",
+    "annual_premium_usd": 1500.0,
+    "coverages": [
+      {
+        "type": "LIABILITY",
+        "deductible": null
+      },
+      {
+        "type": "COLLISION",
+        "deductible": 500
+      }
+    ],
+    "status_history": [
+      {
+        "status": "ACTIVE",
+        "from": "2026-01-01",
+        "to": "2026-06-29"
+      },
+      {
+        "status": "CANCELLED",
+        "from": "2026-06-30",
+        "to": null
+      }
+    ],
+    "cancellation_effective_date": "2026-06-30"
+  },
+  {
+    "policy_id": "POL-100004",
+    "holder_first_name": "Wei",
+    "holder_last_name": "Chen",
+    "dob": "1995-11-03",
+    "status": "ACTIVE",
+    "product": "PERSONAL_AUTO",
+    "vehicle_year": 2021,
+    "vehicle_make": "Tesla",
+    "vehicle_model": "Model 3",
+    "vehicle_plate": "ACM-1004",
+    "term_start": "2026-05-01",
+    "term_end": "2027-04-30",
+    "paid_through": "2027-04-30",
+    "annual_premium_usd": 800.0,
+    "coverages": [
+      {
+        "type": "LIABILITY",
+        "deductible": null
+      }
+    ],
+    "status_history": [
+      {
+        "status": "ACTIVE",
+        "from": "2026-05-01",
+        "to": null
+      }
+    ],
+    "cancellation_effective_date": null
+  },
+  {
+    "policy_id": "POL-100005",
+    "holder_first_name": "Aisha",
+    "holder_last_name": "Khan",
+    "dob": "1988-07-15",
+    "status": "PENDING_CANCELLATION",
+    "product": "PERSONAL_AUTO",
+    "vehicle_year": 2020,
+    "vehicle_make": "Subaru",
+    "vehicle_model": "Outback",
+    "vehicle_plate": "ACM-1005",
+    "term_start": "2026-02-01",
+    "term_end": "2027-01-31",
+    "paid_through": "2027-01-31",
+    "annual_premium_usd": 1100.0,
+    "coverages": [
+      {
+        "type": "LIABILITY",
+        "deductible": null
+      },
+      {
+        "type": "COLLISION",
+        "deductible": 500
+      },
+      {
+        "type": "COMPREHENSIVE",
+        "deductible": 500
+      }
+    ],
+    "status_history": [
+      {
+        "status": "ACTIVE",
+        "from": "2026-02-01",
+        "to": "2026-10-10"
+      },
+      {
+        "status": "PENDING_CANCELLATION",
+        "from": "2026-10-11",
+        "to": null
+      }
+    ],
+    "cancellation_effective_date": "2026-11-15"
+  },
+  {
+    "policy_id": "POL-100006",
+    "holder_first_name": "Liam",
+    "holder_last_name": "O'Brien",
+    "dob": "1970-02-28",
+    "status": "ACTIVE",
+    "product": "PERSONAL_AUTO",
+    "vehicle_year": 2023,
+    "vehicle_make": "Hyundai",
+    "vehicle_model": "Tucson",
+    "vehicle_plate": "ACM-1006",
+    "term_start": "2026-07-01",
+    "term_end": "2027-06-30",
+    "paid_through": "2027-06-30",
+    "annual_premium_usd": 1400.0,
+    "coverages": [
+      {
+        "type": "LIABILITY",
+        "deductible": null
+      },
+      {
+        "type": "COLLISION",
+        "deductible": 500
+      }
+    ],
+    "status_history": [
+      {
+        "status": "ACTIVE",
+        "from": "2026-07-01",
+        "to": null
+      }
+    ],
+    "cancellation_effective_date": null
+  },
+  {
+    "policy_id": "POL-999500",
+    "holder_first_name": "Test",
+    "holder_last_name": "Fault",
+    "dob": "2000-01-01",
+    "status": "ACTIVE",
+    "product": "PERSONAL_AUTO",
+    "vehicle_year": 2020,
+    "vehicle_make": "Test",
+    "vehicle_model": "Car",
+    "vehicle_plate": "TST-500",
+    "term_start": "2026-01-01",
+    "term_end": "2026-12-31",
+    "paid_through": "2026-12-31",
+    "annual_premium_usd": 1000.0,
+    "coverages": [
+      {
+        "type": "LIABILITY",
+        "deductible": null
+      },
+      {
+        "type": "COLLISION",
+        "deductible": 500
+      }
+    ],
+    "status_history": [
+      {
+        "status": "ACTIVE",
+        "from": "2026-01-01",
+        "to": null
+      }
+    ],
+    "cancellation_effective_date": null
+  },
+  {
+    "policy_id": "POL-999408",
+    "holder_first_name": "Test",
+    "holder_last_name": "Timeout",
+    "dob": "2000-01-01",
+    "status": "ACTIVE",
+    "product": "PERSONAL_AUTO",
+    "vehicle_year": 2020,
+    "vehicle_make": "Test",
+    "vehicle_model": "Car",
+    "vehicle_plate": "TST-408",
+    "term_start": "2026-01-01",
+    "term_end": "2026-12-31",
+    "paid_through": "2026-12-31",
+    "annual_premium_usd": 1000.0,
+    "coverages": [
+      {
+        "type": "LIABILITY",
+        "deductible": null
+      },
+      {
+        "type": "COLLISION",
+        "deductible": 500
+      }
+    ],
+    "status_history": [
+      {
+        "status": "ACTIVE",
+        "from": "2026-01-01",
+        "to": null
+      }
+    ],
+    "cancellation_effective_date": null
+  },
+  {
+    "policy_id": "POL-999501",
+    "holder_first_name": "Test",
+    "holder_last_name": "WriteFault",
+    "dob": "2000-01-01",
+    "status": "ACTIVE",
+    "product": "PERSONAL_AUTO",
+    "vehicle_year": 2020,
+    "vehicle_make": "Test",
+    "vehicle_model": "Car",
+    "vehicle_plate": "TST-501",
+    "term_start": "2026-01-01",
+    "term_end": "2026-12-31",
+    "paid_through": "2026-12-31",
+    "annual_premium_usd": 1000.0,
+    "coverages": [
+      {
+        "type": "LIABILITY",
+        "deductible": null
+      },
+      {
+        "type": "COLLISION",
+        "deductible": 500
+      }
+    ],
+    "status_history": [
+      {
+        "status": "ACTIVE",
+        "from": "2026-01-01",
+        "to": null
+      }
+    ],
+    "cancellation_effective_date": null
+  },
+  {
+    "policy_id": "POL-999502",
+    "holder_first_name": "Test",
+    "holder_last_name": "CommitTimeout",
+    "dob": "2000-01-01",
+    "status": "ACTIVE",
+    "product": "PERSONAL_AUTO",
+    "vehicle_year": 2020,
+    "vehicle_make": "Test",
+    "vehicle_model": "Car",
+    "vehicle_plate": "TST-502",
+    "term_start": "2026-01-01",
+    "term_end": "2026-12-31",
+    "paid_through": "2026-12-31",
+    "annual_premium_usd": 1000.0,
+    "coverages": [
+      {
+        "type": "LIABILITY",
+        "deductible": null
+      },
+      {
+        "type": "COLLISION",
+        "deductible": 500
+      }
+    ],
+    "status_history": [
+      {
+        "status": "ACTIVE",
+        "from": "2026-01-01",
+        "to": null
+      }
+    ],
+    "cancellation_effective_date": null
+  }
+]

@@ -1,0 +1,96 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "insurance-support-agent"
+version = "0.1.0"
+description = "Acme Mutual insurance support assistant built with LangGraph"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "langgraph==1.2.16",
+    "langgraph-checkpoint==4.3.0",
+    "langgraph-checkpoint-sqlite==3.1.2",
+    "langgraph-prebuilt==1.1.1",
+    "langchain-core==1.7.0",
+    "langchain-anthropic==1.7.6",
+    "pydantic==2.14.1",
+    "pydantic-settings==2.16.1",
+    "python-dateutil==3.0.0",
+    "tenacity==9.2.1",
+    "structlog==26.1.0",
+    "sqlmodel==0.0.48",
+    "SQLAlchemy==2.1.6",
+    "fastapi==0.161.1",
+    "uvicorn==0.54.0",
+    "typer==0.27.3",
+    "rich==15.0.0",
+    "httpx==0.28.1",
+    "PyYAML==6.0.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+    "pytest-cov==7.1.0",
+    "ruff==0.17.2",
+    "mypy==2.4.0",
+    "types-python-dateutil==2.9.0.20261021",
+    "types-PyYAML==6.0.12.20260906",
+]
+
+[project.scripts]
+support = "app.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.setuptools.package-data]
+app = ["prompts/*.md"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "N", "C4", "PT", "RET"]
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["N802", "PT011"]
+
+[tool.mypy]
+strict = true
+python_version = "3.11"
+plugins = ["pydantic.mypy"]
+files = ["app"]
+
+[[tool.mypy.overrides]]
+module = ["langchain_anthropic.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+markers = [
+    "eval: real-LLM evaluation conversations (excluded by default)",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning:dateutil.*",
+]
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
