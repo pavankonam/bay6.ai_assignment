@@ -6,7 +6,7 @@ COV_MIN ?= 85
 PYTEST_ARGS ?=
 
 .DEFAULT_GOAL := help
-.PHONY: help install seed run test test-llm test-deterministic lint typecheck format check \
+.PHONY: help install seed run run-offline test test-llm test-deterministic lint typecheck format check \
         demo graph eval clean reset
 
 help: ## Show available targets
@@ -24,8 +24,11 @@ install: $(PY) ## Create .venv and install pinned dependencies (incl. dev tools)
 seed: ## Load seed policies/claims into data/app.db (idempotent)
 	$(PY) -m app.seed
 
-run: ## Start the API (single worker, A8)
+run: ## Start the API (single worker, A8); settings come from the environment / .env
 	$(BIN)/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1
+
+run-offline: ## Start the API with the fake LLM and APP_TODAY=2026-10-22 (no API key needed)
+	LLM_PROVIDER=fake APP_TODAY=2026-10-22 $(BIN)/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1
 
 test-llm: ## Full test suite, TOOL_SELECTION_MODE=llm, fake LLM, coverage gate
 	TOOL_SELECTION_MODE=llm $(PY) -m pytest --cov=app --cov-report=term --cov-fail-under=$(COV_MIN) $(PYTEST_ARGS)
@@ -36,16 +39,16 @@ test-deterministic: ## Full test suite, TOOL_SELECTION_MODE=deterministic, fake 
 test: test-llm test-deterministic ## Run the suite in both tool-selection modes
 
 lint: ## ruff (lint + format check) and mypy --strict on app/
-	$(BIN)/ruff check app tests
-	$(BIN)/ruff format --check app tests
+	$(BIN)/ruff check app tests scripts
+	$(BIN)/ruff format --check app tests scripts
 	$(BIN)/mypy
 
 typecheck: ## mypy --strict on app/
 	$(BIN)/mypy
 
 format: ## Auto-format and fix lint where safe
-	$(BIN)/ruff format app tests
-	$(BIN)/ruff check --fix app tests
+	$(BIN)/ruff format app tests scripts
+	$(BIN)/ruff check --fix app tests scripts
 
 check: lint test ## All gates: lint, mypy, tests in both modes with coverage
 
