@@ -44,9 +44,21 @@ def isolated_settings(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterat
     monkeypatch.setenv("APP_DB_PATH", str(tmp_path / "app.db"))
     monkeypatch.setenv("CHECKPOINT_DB_PATH", str(tmp_path / "checkpoints.db"))
     get_settings.cache_clear()
+    _reset_singletons()
     yield
+    _reset_singletons()
     dispose_engines()
     get_settings.cache_clear()
+
+
+def _reset_singletons() -> None:
+    from app.mock_api.faults import reset_fault_injector
+    from app.mock_api.service import set_services
+    from app.observability.metrics import metrics
+
+    reset_fault_injector()
+    set_services(None)
+    metrics.reset()
 
 
 @pytest.fixture
@@ -60,6 +72,9 @@ def set_env(monkeypatch: pytest.MonkeyPatch) -> Callable[..., None]:
             else:
                 monkeypatch.setenv(key, str(value))
         get_settings.cache_clear()
+        from app.mock_api.faults import reset_fault_injector
+
+        reset_fault_injector()
 
     return _apply
 

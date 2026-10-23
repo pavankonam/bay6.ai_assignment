@@ -72,3 +72,69 @@ Choices the PRD (`docs/PRD.md`) does not dictate: library versions, ambiguities,
 - **Context:** The rules ask for each milestone's commit hash in `CHECKPOINTS.md`, but a commit cannot contain its own hash.
 - **Decision:** Commit the milestone and tag it `checkpoint_mN`, then make a one-line follow-up commit that writes the tagged commit's hash into `CHECKPOINTS.md`.
 - **Why:** The tag points at exactly the verified code, and the recorded hash stays accurate.
+
+---
+
+## M1: Mock backend + tools
+
+### D-011 Timeouts: real per-attempt timeout plus simulated magic timeouts
+- **Context:** FR45 requires a per-call timeout (`TOOL_TIMEOUT_SECONDS`, default 5). POL-999408 must "time out". Sleeping 5 seconds × 3 attempts in tests is unacceptable.
+- **Decision:** `run_tool` runs each attempt on a worker thread and waits with `future.result(timeout)`. A late result raises `ToolTimeoutError`, which is a real timeout. The magic IDs (POL-999408, and the post-commit half of POL-999502) raise `ToolTimeoutError` immediately, as if the deadline had passed.
+- **Why:** Real timeouts are enforced (and tested with a 20 ms deadline) without slow tests. A timed-out thread may still finish its work, which is exactly the "unknown write outcome" that FR47a handles.
+
+### D-012 Error envelope extensions
+- **Context:** §8.6 fixes the envelope as `{ok, data, error:{code, message, retryable}}`. The duplicate template needs the existing claim ID, and `ErrorInfo.attempts` needs an attempt count.
+- **Decision:** `error` also carries `attempts`. `DUPLICATE_CLAIM` failures set `data = {"existing_claim_id": ...}`. An unexpected exception inside a tool becomes code `INTERNAL` (non-retryable) with a generic message.
+- **Why:** These are additive fields; nothing in the PRD reads the envelope in a way they break. `INTERNAL` follows FR47b's "any unknown error code → escalate", and the message never leaks exception text (FR49).
+
+### D-013 Check order in mock write APIs
+- **Context:** The order of the idempotency, approval and eligibility checks isn't specified.
+- **Decision:** The order is:
+  1. Fault injection.
+  2. `APPROVAL_REQUIRED` (`cancel_policy` only).
+  3. Idempotency-key lookup: same hash → replay, different hash → `CONFLICT`.
+  4. Eligibility (`NOT_ELIGIBLE`).
+  5. Duplicate check (`DUPLICATE_CLAIM`).
+  6. Insert.
+  
+  Writes are serialized by a process-wide lock in the mock service.
+- **Why:** A replay must return the original result even after the first write changed the policy (for example, it is now `PENDING_CANCELLATION`). Otherwise the POL-999502 replays would wrongly report `NOT_ELIGIBLE`.
+
+### D-014 The mock API re-checks business rules (defense in depth)
+- **Context:** FR31 and FR34 rules are enforced by the graph. §8.6 lists `NOT_ELIGIBLE` for the write tools and the quote.
+- **Decision:**
+  - `create_claim` returns `NOT_ELIGIBLE` if the policy was not in force on the incident date, if the date is in the future, or if it is more than 365 days ago.
+  - `get_cancellation_quote` and `cancel_policy` return `NOT_ELIGIBLE` outside `today..today+60` or when the status isn't ACTIVE/LAPSED.
+  - An unknown policy on a write returns `NOT_ELIGIBLE`, since `NOT_FOUND` isn't in the write tools' code list.
+- **Why:** The backend should not trust the agent. This is also the PRD's "policy status changed between approval and execution → `WRITE_NOT_ELIGIBLE`" case.
+
+### D-015 `lookup_write_result` takes an optional `policy_id` hint
+- **Context:** `MOCK_FAULT_LOOKUP` must make the lookup fail "for magic IDs". The lookup is keyed only by `idempotency_key` (a hash), and for POL-999501 no record exists to infer the policy from.
+- **Decision:** `lookup_write_result(idempotency_key, policy_id=None)`. The hint is used only by fault injection.
+- **Why:** This is the minimal change that makes the fault testable. Real lookups ignore the hint.
+
+### D-016 Status history after a cancellation
+- **Context:** §8.6 says `cancel_policy` sets `PENDING_CANCELLATION` (or `CANCELLED` if effective today) and appends to `status_history`. It doesn't give the dates.
+- **Decision:** The open history entry is closed on `today − 1`, and the new status starts `today`, following the seeded POL-100005 pattern. `cancellation_effective_date` is set. LAPSED policies follow the same rule.
+- **Why:** This is consistent with the seed data and with FR31's "PENDING_CANCELLATION before the effective date is in force".
+
+### D-017 Payload canonicalization
+- **Context:** `payload_hash` must be identical whether a value arrives as `2500` or `2500.0`, or as a `date` or its ISO string.
+- **Decision:** `canonical_json` converts every non-bool number to `float` and dates to ISO strings, then serializes with `sort_keys=True` and compact separators.
+- **Why:** This avoids spurious `CONFLICT`s between the hash computed in `prepare_action` and the one computed by the mock API.
+
+### D-018 Modules not in the PRD's project tree
+- **Decision:**
+  - `app/rules.py`: in-force-on-date, refund formula, collision check. Shared by the graph and the mock backend.
+  - `app/tools/idempotency.py`: canonical payload, hash, key.
+  - `app/db.py`: engine and sessions.
+  - `app/seed.py`: the `make seed` loader.
+- **Why:** These rules are needed by both the graph and the mock backend. Putting them in `mock_api` would make the graph depend on the mock.
+
+### D-019 `MOCK_FAULT_CLEAR_AFTER` semantics
+- **Decision:** The counter covers magic-ID faults only (random faults don't count). It is process-wide and resets on restart (or `reset_fault_injector()` in tests). With `MOCK_FAULT_CLEAR_AFTER=3`, the three attempts of the first write fail, and the explicit customer "retry" then succeeds.
+- **Why:** This matches the stated purpose ("lets the write succeed on an explicit retry").
+
+### D-020 Own Prometheus text renderer instead of `prometheus_client`
+- **Decision:** `app/observability/metrics.py` is a ~60-line, thread-safe counter registry with a text-exposition `render()`.
+- **Why:** NFR17 only needs counters. This avoids a dependency and its global registry, which complicates resetting between tests.
