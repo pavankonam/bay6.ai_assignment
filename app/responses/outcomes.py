@@ -77,6 +77,11 @@ def render_template(outcome: str | None, state: Mapping[str, Any], facts: Mappin
             float(result.get("refund_estimate_usd") or 0),
             comment,
         )
+    if outcome in ("CLAIM_REJECTED", "CANCEL_REJECTED"):
+        action_type = "create_claim" if outcome == "CLAIM_REJECTED" else "cancel_policy"
+        return templates.approval_rejected(action_type, comment)
+    if outcome == "APPROVAL_EXPIRED":
+        return templates.approval_expired(approval.get("approval_id"))
     if outcome == "DECLINED_BY_CUSTOMER":
         return templates.declined()
     if outcome == "WRITE_NOT_ELIGIBLE":

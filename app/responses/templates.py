@@ -401,3 +401,38 @@ def duplicate_at_write(claim_id: str | None) -> str:
         f"There's already an open claim{existing} for that incident date, so I didn't file a new "
         f"one. If you'd still like to file, please start the claim again or call {phone()}."
     )
+
+
+def pending_review(approval_id: str) -> str:
+    return (
+        "Your request has been sent to a support specialist for approval. "
+        f"Reference: {approval_id}. You'll get a response here once it's reviewed. If you need "
+        "help with something else in the meantime, please start a new conversation."
+    )
+
+
+def still_pending(approval_id: str) -> str:
+    return (
+        f"Your request {approval_id} is still pending review. If you need help with something "
+        "else, please start a new conversation."
+    )
+
+
+def approval_rejected(action_type: str, comment: str | None) -> str:
+    noun = "claim" if action_type == "create_claim" else "cancellation request"
+    nothing = (
+        "nothing has been filed"
+        if action_type == "create_claim"
+        else ("your policy has not been changed")
+    )
+    return (
+        f"Your {noun} was reviewed and not approved, so {nothing}.{specialist_note(comment)} "
+        f"If you'd like to talk it through with someone, please call {phone()}."
+    )
+
+
+def approval_expired(approval_id: str | None) -> str:
+    return (
+        f"Your request {approval_id} expired before it could be reviewed. "
+        "Would you like me to submit it again?"
+    )

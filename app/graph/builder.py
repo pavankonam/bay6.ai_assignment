@@ -23,8 +23,16 @@ def _paths(*targets: str) -> dict[Hashable, str]:
     return {t: t for t in targets}
 
 
-def build_graph(checkpointer: BaseCheckpointSaver[Any] | None = None) -> CompiledGraph:
-    """Build and compile the support graph. Defaults to an in-memory checkpointer."""
+def build_graph(
+    checkpointer: BaseCheckpointSaver[Any] | None = None,
+    *,
+    interrupt_before: list[str] | None = None,
+) -> CompiledGraph:
+    """Build and compile the support graph. Defaults to an in-memory checkpointer.
+
+    `interrupt_before` exists only so tests can simulate a crash between two nodes
+    (e.g. after `announce_approval` was checkpointed but before `human_approval` ran).
+    """
     graph: StateGraph[Any, Any, Any, Any] = StateGraph(SupportState)
     for name, fn in NODES.items():
         # Nodes take `Mapping[str, Any]` views of `SupportState`; LangGraph wants the TypedDict.
@@ -116,7 +124,9 @@ def build_graph(checkpointer: BaseCheckpointSaver[Any] | None = None) -> Compile
         routing.route_next_task,
         {"offer_next_task": "offer_next_task", END: END},
     )
-    return graph.compile(checkpointer=checkpointer or InMemorySaver())
+    return graph.compile(
+        checkpointer=checkpointer or InMemorySaver(), interrupt_before=interrupt_before
+    )
 
 
 def draw_mermaid() -> str:

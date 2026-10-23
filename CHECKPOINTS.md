@@ -14,7 +14,7 @@ Each milestone commit is tagged `checkpoint_mN`. A commit cannot contain its own
 | M2: State + graph skeleton | ✅ Passed | 276 / 276 | 96.2% / 96.2% | `c723f01` | `checkpoint_m2` |
 | M3: Understanding + slots + verification | ✅ Passed | 491 / 491 | 92.1% / 92.1% | `e90bd80` | `checkpoint_m3` |
 | M4: Claim + cancellation + confirmation | ✅ Passed | 549 / 549 | 94.0% / 94.0% | `ef6ce0e` | `checkpoint_m4` |
-| M5: Human-in-the-loop | ⏳ Not started | | | | |
+| M5: Human-in-the-loop | ✅ Passed | 574 / 574 | 94.7% / 94.7% | _pending_ | `checkpoint_m5` |
 | M6: Error handling + responses | ⏳ Not started | | | | |
 | M7: API + CLI | ⏳ Not started | | | | |
 | M8: Docs (core sign-off) | ⏳ Not started | | | | |
@@ -81,3 +81,18 @@ Each milestone commit is tagged `checkpoint_mN`. A commit cannot contain its own
     - Duplicates: an unverified duplicate never calls `find_open_claims` and reveals no claim ID; yes still needs confirmation and writes with `allow_duplicate`; no / unrelated leave no claim task.
     - Injection: three cases (text, LLM output, a write-tool call in `plan_tool`) — no write.
   - **Unit tests** (`tests/unit/test_write_guard.py`): every FR26 guard condition, the blocked write being an internal error with no DB write, prepare_action's fresh IDs and keys, the FR32 reasons, and deterministic edit detection.
+
+## M5: Human-in-the-loop
+- **Exit criteria (PRD §12):** Flows C, D and G pass; the restart and crash-before-interrupt tests pass; a double decision → 409; a late decision unsticks the thread; the concurrency test passes.
+- **Result:**
+  - **Integration tests** (`tests/integration/test_approvals.py`):
+    - Flow C approve: the exact pending-review and final messages, interrupt payload fields (masked DOB, summary ≤ 3 sentences), FR38 no repeat, FR44 delivery via history.
+    - Flow D reject: no write, the comment and the phone number shown.
+    - Flow G: expiry on the customer's message → notice + restart offer → "yes" → fresh summary with a new `pending_action_id`; also expiry followed by a different intent.
+    - A late decision → `ConflictError` (409 at the API in M7), approval expired, thread no longer interrupted, then "yes" restarts. Read paths show "expired" without persisting it.
+    - A message while pending → side reply; graph not invoked (same checkpoint id, interrupt intact); history merged with side messages.
+    - A claim with approval.
+    - Recovery: a restart mid-approval (new graph, same SQLite file); a crash between announce and the interrupt → `ensure_interrupt` on the next message, with a single pending-review message.
+    - Resume: a double resume writes once (NFR12); a crashed resume is completed by the customer's next message (step 3b).
+    - Concurrency: decision and message at once ×3.
+  - **Unit tests:** the approvals service (insert-or-get uniqueness with `customer`, conditional decide/expire setting `resume_status='pending'`, TTL).
