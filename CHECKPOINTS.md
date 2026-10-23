@@ -17,7 +17,7 @@ Each milestone commit is tagged `checkpoint_mN`. A commit cannot contain its own
 | M5: Human-in-the-loop | ✅ Passed | 574 / 574 | 94.7% / 94.7% | `4dfd866` | `checkpoint_m5` |
 | M6: Error handling + responses | ✅ Passed | 630 / 630 | 96.3% / 96.3% | `85bfbfb` | `checkpoint_m6` |
 | M7: API + CLI | ✅ Passed | 656 / 656 | 96.3% / 96.3% | `c9d8bd7` | `checkpoint_m7` |
-| M8: Docs (core sign-off) | ⏳ Not started | | | | |
+| M8: Docs (core sign-off) | ✅ Passed | 657 / 657 | 96.3% / 96.3% | _pending_ | `checkpoint_m8` |
 | M9: Hardening | ⏳ Not started | | | | |
 | M10: Evaluation | ⏳ Not started | | | | |
 
@@ -132,3 +132,13 @@ Each milestone commit is tagged `checkpoint_mN`. A commit cannot contain its own
     - `approvals list`/`decide` (409 on repeat); exactly one of `--approve`/`--reject` required; a wrong token → 401; truncation at 2,000 characters.
     - The **CLI decision + API customer message running concurrently ×3**: one write, one outcome message, one pending-review message.
   - **Manual check:** a real `uvicorn app.main:app` process plus the `support chat`, `support approvals list` and `support approvals decide` processes (fake LLM) ran Flow C end to end; `/metrics` showed the expected counters.
+
+## M8: Docs — **Core MVP sign-off**
+- **Exit criteria (PRD §12):** the README walkthrough is reproducible from a clean clone.
+- **Result:** Verified from a fresh `git clone` into a scratch directory on Python 3.11.9:
+  - `make install` (venv + `requirements.lock`) works.
+  - `make demo` shows the three requests plus approve and reject; `tests/integration/test_demo.py` also runs it.
+  - `make check` passes: lint + mypy, 657 tests in each mode, 96.3% coverage.
+  - The interactive walkthrough (`make run-offline` + `.venv/bin/support chat` + `support approvals list`) works.
+  - `git status` is clean afterwards: the databases are ignored.
+- **Deliverables:** `README.md`, `docs/design-decisions.md` (the 16 §8.9 decisions, what is sent to the LLM vendor, the lockout DoS tradeoff, expiry), `scripts/demo.py`, and a regenerated `docs/graph.md`.

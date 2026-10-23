@@ -453,3 +453,22 @@ Choices the PRD (`docs/PRD.md`) does not dictate: library versions, ambiguities,
 ### D-069 How the CLI-vs-API concurrency test runs
 - **Decision:** `tests/integration/test_cli.py` starts a real Uvicorn server on a free localhost port in a background thread; the network guard allows loopback. It then fires a CLI decision (`CliRunner` → `httpx` → the server) and an API customer message on the same thread behind a barrier, three times.
 - **Why:** This tests the actual FR54/NFR14a path (CLI → HTTP → per-thread lock), not a shortcut.
+
+---
+
+## M8: Docs
+
+### D-070 Demo design
+- **Decision:**
+  - `make demo` (`scripts/demo.py`) starts its own API on a free localhost port with temporary databases, the fake LLM and `APP_TODAY=2026-10-22`.
+  - It plays the customer over HTTP and the reviewer through the real CLI (subprocesses), covering: status, a low-severity claim, a cancellation with a "still pending" reply then approval, and an injury claim with no estimate that is rejected.
+  - `tests/integration/test_demo.py` runs the script, so the README demo can't silently break.
+  - `make run-offline` starts the API with the fake LLM and the PRD's `APP_TODAY` for interactive use.
+- **Why:**
+  - **No key or network:** the demo has to work from a clean clone without either.
+  - **A pinned date:** the seed policies have 2026 terms, so pinning the business date keeps every example (Flow C's $175.55, "yesterday" = 2026-10-21) reproducible whatever the real date is.
+  - **Real code paths:** both the HTTP and CLI paths are exercised.
+
+### D-071 Python version verified from a clean clone
+- **Decision:** The M8 walkthrough was run from a fresh `git clone` on **Python 3.11.9**: `make install`, `make demo`, `make check` (657 tests ×2), and `make run-offline` + `support chat`. The development environment is 3.13.6.
+- **Why:** This confirms that `requires-python >= 3.11` and the lock file (generated on 3.13) work on the minimum supported version.
