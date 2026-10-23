@@ -175,7 +175,11 @@ class SupportRuntime:
     def create_thread(self) -> str:
         return str(uuid.uuid4())
 
-    def post_message(self, thread_id: str, content: str) -> MessageResult:
+    def post_message(
+        self, thread_id: str, content: str, client_message_id: str | None = None
+    ) -> MessageResult:
+        """Section 8.8 customer message handling. `client_message_id` is accepted and ignored
+        in the core build (FR53a is a Hardening item)."""
         if len(content) > MAX_MESSAGE_CHARS:
             raise MessageTooLongError(f"Message exceeds {MAX_MESSAGE_CHARS} characters")
         with self.locks.hold(thread_id):

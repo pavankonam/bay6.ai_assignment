@@ -414,3 +414,42 @@ Choices the PRD (`docs/PRD.md`) does not dictate: library versions, ambiguities,
 - **Context:** `ingest` checkpoints its normalization (`awaiting_info → in_progress`) before a later node can fail. "The thread stays at its last checkpoint with its status unchanged" otherwise loses the turn's starting status.
 - **Decision:** The invocation wrapper captures `status` before invoking. On an unhandled exception it writes that status back, together with the system-unavailable message and `last_outcome=SYSTEM_UNAVAILABLE`.
 - **Why:** This is the intent of NFR14: a crash leaves the conversation exactly where the customer last saw it, and the next message is processed normally (tested).
+
+---
+
+## M7: API + CLI
+
+### D-064 API structure
+- **Decision:**
+  - `app/main.py` holds `create_app()` plus a module-level `app` for `uvicorn app.main:app`.
+  - Handlers are synchronous `def`s, so they run in the threadpool (A8), and call `SupportRuntime`, which holds the per-thread locks.
+  - `MessageIn.content` has `max_length=2000`, so FastAPI returns 422 (FR56).
+  - Runtime errors map to HTTP: `NotFoundError` → 404, `ConflictError` → 409.
+  - A SQLite/SQLAlchemy `OperationalError` or `DatabaseError` → 503 with a generic body (§9.3). `/healthz` returns `degraded` when either database can't be queried.
+- **Why:** The endpoints stay thin, and all the §8.8 logic lives in one place.
+
+### D-065 Auth and secrets
+- **Decision:** The reviewer and admin tokens are read once when the app is created and compared with `secrets.compare_digest`. A missing or wrong header → 401 (FR55). Tokens are never logged; the masking processor also blanks keys named like tokens.
+- **Why:** Settings are loaded once at startup, as in production. Reading them per request would also make the server and an in-process CLI share a token in tests, which hid a misconfiguration.
+
+### D-066 Rate limiting
+- **Decision:** An in-memory token bucket per `request.client.host` with capacity `RATE_LIMIT_PER_MINUTE`, refilling continuously over 60 seconds. It applies only to `POST /threads` and `POST /threads/{id}/messages` (FR19b), and an empty bucket → 429.
+- **Why:** This is the spec, and in-memory is fine for the single-process MVP (A8).
+
+### D-067 Startup conveniences
+- **Decision:**
+  - If the `policies` table is empty at startup, the seed data is loaded, so `make run` works from a clean clone without `make seed`. `make seed` stays the idempotent loader.
+  - With `LLM_PROVIDER=anthropic` and no `ANTHROPIC_API_KEY`, startup logs `llm_key_missing` with a hint to use `LLM_PROVIDER=fake`. Calls would otherwise silently degrade to the FR48 rules.
+  - When `LANGSMITH_API_KEY` is set, `LANGSMITH_TRACING=true` is enabled (NFR16). Nothing is traced otherwise.
+- **Why:** A reviewer without a key gets a working demo and a clear signal about which LLM is in use.
+
+### D-068 CLI behavior
+- **Decision:**
+  - Every command except `graph draw` uses `httpx` against `SUPPORT_API_URL`. A transport error → exit code 1 with "API not reachable at {SUPPORT_API_URL}" (FR54). HTTP errors print `Error <code>: <detail>` and exit 1.
+  - `support chat` offers `/refresh`, which fetches `GET /threads/{id}` to show a reviewer's outcome (FR44), and `/quit`. Resuming with `--thread-id` prints the history so far. Messages over 2,000 characters are truncated with a warning (§9.1).
+  - `support approvals list` prints one block per approval (customer with masked DOB, payload, risk flags, summary) rather than a table, which wrapped unreadably at 80 columns.
+- **Why:** These follow FR54 and §9.1, and the output is usable in a normal terminal.
+
+### D-069 How the CLI-vs-API concurrency test runs
+- **Decision:** `tests/integration/test_cli.py` starts a real Uvicorn server on a free localhost port in a background thread; the network guard allows loopback. It then fires a CLI decision (`CliRunner` → `httpx` → the server) and an API customer message on the same thread behind a barrier, three times.
+- **Why:** This tests the actual FR54/NFR14a path (CLI → HTTP → per-thread lock), not a shortcut.

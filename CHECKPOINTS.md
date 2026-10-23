@@ -16,7 +16,7 @@ Each milestone commit is tagged `checkpoint_mN`. A commit cannot contain its own
 | M4: Claim + cancellation + confirmation | ✅ Passed | 549 / 549 | 94.0% / 94.0% | `ef6ce0e` | `checkpoint_m4` |
 | M5: Human-in-the-loop | ✅ Passed | 574 / 574 | 94.7% / 94.7% | `4dfd866` | `checkpoint_m5` |
 | M6: Error handling + responses | ✅ Passed | 630 / 630 | 96.3% / 96.3% | `85bfbfb` | `checkpoint_m6` |
-| M7: API + CLI | ⏳ Not started | | | | |
+| M7: API + CLI | ✅ Passed | 656 / 656 | 96.3% / 96.3% | _pending_ | `checkpoint_m7` |
 | M8: Docs (core sign-off) | ⏳ Not started | | | | |
 | M9: Hardening | ⏳ Not started | | | | |
 | M10: Evaluation | ⏳ Not started | | | | |
@@ -117,3 +117,18 @@ Each milestone commit is tagged `checkpoint_mN`. A commit cannot contain its own
     - **Wrappers:** `RECURSION_LIMIT=3` → escalation (NFR13); an unhandled exception → system-unavailable with the status unchanged and the next message processed normally (NFR14).
     - **Soak:** a seeded random-fault soak (×4) with no crashes, no leaked internals and at most one write.
   - **Unit tests:** the guard functions (`tests/unit/test_guard.py`).
+
+## M7: API + CLI
+- **Exit criteria (PRD §12):** the API integration tests pass; the CLI-vs-API concurrency test passes; the interactive CLI demo works.
+- **Result:**
+  - **API tests** (`tests/integration/test_api.py`):
+    - Flow A over HTTP with no tool messages returned; the 2,000/2,001-character boundary (FR56); a new `thread_id` starting fresh (FR2) and a 404 for unknown history.
+    - History: customer-visible only, DOBs masked, side messages merged in `created_at` order.
+    - Auth: `/state` needs the admin token and `/approvals` the reviewer token (401 without).
+    - Approvals: the full flow with 200, a second decision → 409 and FR44 delivery; decision validation (422) and 404; a late decision → 409 that unsticks the thread.
+    - Operations: rate limit → 429; `/healthz` ok/degraded; `/metrics` text; database failure → 503; no internal identifiers in responses; the missing-key startup warning; tracing enabled only with a key; no secrets logged.
+  - **CLI tests** (`tests/integration/test_cli.py`, against a live Uvicorn server):
+    - Unreachable API → exit 1 with a message; `chat`, `chat --thread-id` showing the reviewer outcome, and `/refresh` picking up a decision made mid-session.
+    - `approvals list`/`decide` (409 on repeat); exactly one of `--approve`/`--reject` required; a wrong token → 401; truncation at 2,000 characters.
+    - The **CLI decision + API customer message running concurrently ×3**: one write, one outcome message, one pending-review message.
+  - **Manual check:** a real `uvicorn app.main:app` process plus the `support chat`, `support approvals list` and `support approvals decide` processes (fake LLM) ran Flow C end to end; `/metrics` showed the expected counters.
