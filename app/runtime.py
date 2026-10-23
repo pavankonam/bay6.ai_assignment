@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import Any
 
+import structlog
 from langchain_core.messages import AIMessage, AnyMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.errors import GraphRecursionError
@@ -125,6 +126,8 @@ class SupportRuntime:
         system-unavailable, status unchanged)."""
         config = _config(thread_id)
         status_before = self.snapshot(thread_id).values.get("status")
+        # NFR15: every log line emitted during this run (nodes, tools) carries the thread id.
+        bound = structlog.contextvars.bind_contextvars(thread_id=thread_id)
         try:
             self.graph.invoke(payload, config)
         except GraphRecursionError:
@@ -152,6 +155,8 @@ class SupportRuntime:
                 },
                 as_node="clarify",
             )
+        finally:
+            structlog.contextvars.reset_contextvars(**bound)
 
     def ensure_interrupt(self, thread_id: str) -> None:
         """Repair a crash between `announce_approval` and `interrupt()` (Section 8.8)."""

@@ -272,3 +272,31 @@ def test_startup_warns_without_api_key(
     assert os.environ.get("LANGSMITH_TRACING") == "true"  # NFR16: enabled only with a key
     assert "llm_key_missing" in output
     assert "ls-test" not in output  # secrets are never logged (NFR6)
+
+
+def test_logs_are_json_masked_and_carry_thread_id(seeded: None) -> None:
+    """NFR15 fields + R6: no raw DOB or unmasked policy number in logs, at DEBUG level."""
+    import io
+    import json as json_module
+
+    from app.observability import logging as app_logging
+
+    stream = io.StringIO()
+    app_logging.configure_logging("DEBUG", stream=stream, force=True)
+    try:
+        with TestClient(create_app()) as client:
+            tid = new_thread(client)
+            send(client, tid, "is my policy active? POL-100001 born 4/12/1985")
+            send(client, tid, "my DOB is 1985-04-12, can you double check?")
+    finally:
+        app_logging.configure_logging("INFO", force=True)
+    output = stream.getvalue()
+    for raw in ("1985-04-12", "4/12/1985", "POL-100001", "Jane"):
+        assert raw not in output
+    records = [json_module.loads(line) for line in output.splitlines() if line.startswith("{")]
+    tool_logs = [r for r in records if r.get("event") == "tool_call"]
+    assert tool_logs
+    assert all(r.get("thread_id") == tid for r in tool_logs)
+    assert {"tool", "latency_ms", "error_code"} <= set(tool_logs[0])
+    node_logs = [r for r in records if r.get("event") == "node"]
+    assert {"node", "turn", "intent", "status", "last_outcome", "latency_ms"} <= set(node_logs[0])

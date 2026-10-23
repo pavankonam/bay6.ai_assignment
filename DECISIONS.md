@@ -554,3 +554,13 @@ Choices the PRD (`docs/PRD.md`) does not dictate: library versions, ambiguities,
   - The harness is validated with the fake model (`make eval-fake`, also run by `tests/integration/test_eval_harness.py`): all three hard gates are at 0, along with the turn targets.
   - To close M10: put the key in `.env` and run `make eval`.
 - **Why:** Rule 1 says a milestone is done only when its exit criteria pass. Reporting fake-model numbers as the §11.1 result would be misleading.
+
+---
+
+## Final pass
+
+### D-083 `thread_id` on every log line, plus an end-to-end no-PII log test
+- **Decision:** `SupportRuntime._invoke` binds `thread_id` as a structlog context variable for the duration of each graph run. The tool executor copies the context into its worker threads, so tool and node logs both carry it (NFR15). A test runs a conversation through the API at DEBUG level and asserts:
+  - no raw DOB, unmasked policy number or holder name appears in the output;
+  - every `tool_call` record carries the thread id and the NFR15 fields.
+- **Why:** NFR15, and the R6 mitigation ("test asserting no raw DOB in logs").

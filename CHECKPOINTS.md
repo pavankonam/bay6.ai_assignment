@@ -184,3 +184,8 @@ Each milestone commit is tagged `checkpoint_mN`. A commit cannot contain its own
   The accuracy misses are the keyword fake's vocabulary ("T-boned", "insured with you guys", "premium paid through").
 - **Product fix found by the eval:** negated dates ("the 20th, not yesterday") no longer trigger a false ambiguity (D-079).
 - **To close M10:** `cp .env.example .env`, set `ANTHROPIC_API_KEY`, run `make eval`, and confirm `reports/eval.md` shows PASS.
+
+## Final pass (after M10)
+- **Added:** NFR15 `thread_id` context on all logs, and an end-to-end no-PII log test (D-083).
+- **Gates:** `make check` passes: 685 / 685 tests in each mode, 96.5% coverage.
+- **Repo hygiene:** no `.env` or database files are tracked (`git ls-files` check).
