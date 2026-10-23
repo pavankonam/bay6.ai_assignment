@@ -207,3 +207,89 @@ Choices the PRD (`docs/PRD.md`) does not dictate: library versions, ambiguities,
 ### D-030 `ingest` initializes the defaults
 - **Decision:** `ingest` fills in any missing state key with its default (empty slots, `verified=False`, counters at 0, …). Existing values are never overwritten.
 - **Why:** Every downstream node can rely on a fully populated state without defensive defaults.
+
+---
+
+## M3: Understanding, slot filling, verification
+
+### D-031 Date parsing details (FR12a)
+- **Context:** FR12a says "absolute dates via python-dateutil (US MM/DD/YYYY for ambiguous numerics), always with an explicit default anchored to APP_TODAY". Two-digit years and missing years need role-specific rules that dateutil can't apply, because dateutil resolves two-digit years against the host clock.
+- **Decision:**
+  - Month-name forms ("April 12", "12 April 1985", "Nov. 1") are parsed with `dateutil.parser.parse(..., default=datetime(APP_TODAY...), dayfirst=False)`. The year is extracted separately.
+  - ISO and US numeric forms (`MM/DD[/YY[YY]]`, `-` separators) are parsed with an explicit regex in US order. A `.` separator is not accepted, so "2.5k" is never read as a date.
+  - A day-only ordinal ("the 20th") is also supported.
+  - Each role's missing-year and two-digit-year rule is applied in `resolve()`.
+- **Why:** The behavior is deterministic and never depends on the host clock (A7). It is exactly the FR12a contract, including the December/January boundaries (tested).
+
+### D-032 Plausibility uses only the roles relevant to the conversation
+- **Context:** FR12a step 3 assigns a role "if only one role fits". A yearless date like "Nov 1" fits both `incident_date` (2025-11-01) and `effective_date` (2026-11-01), so a cancellation reply "Nov 1" would always be ambiguous.
+- **Decision:** Plausibility considers only `dob` plus the date slot of the intent being discussed (the primary intent of this message, else `active_intent`). With no known intent, all three roles are considered.
+- **Why:** A claim has no effective date, and a cancellation has no incident date. Genuinely ambiguous cases still produce the clarifying question.
+
+### D-033 Incident dates more than 365 days ago pass the validator; FR31 blocks them
+- **Context:** §8.5 lists the `incident_date` validator as "≤ today, ≥ today − 365d". FR31 and §9.1 say a date more than 365 days ago should be explained ("can't be filed via chat") with the escalation contact, not re-asked.
+- **Decision:** The validator rejects only future dates ("The incident date can't be in the future."). An older date is kept, and after verification and lookup FR31 marks the claim `TOO_OLD` → `CLAIM_INELIGIBLE` (a template with the phone number).
+- **Why:** This gives the customer the §9.1 behavior, and the check stays verification-gated (R18).
+
+### D-034 Unambiguous values survive a date-disambiguation turn
+- **Context:** `route_intent` sends ambiguous dates to `clarify`, which skips `validate_slots`. Every other value in that message (policy number, DOB, intent) would be lost and have to be repeated.
+- **Decision:**
+  - `understand` still sets `active_intent`, and leaves the ambiguous role out of the candidates.
+  - On the next turn, `validate_slots` also merges the previous message's still-unmerged extraction, but only if that message triggered a date clarification.
+- **Why:** The agent never guesses dates (FR12a), and it doesn't make the customer repeat unambiguous information (US2).
+
+### D-035 Intent switching
+- **Decision:**
+  - A switch (FR11) happens only when the new intent is classified with confidence ≥ the threshold.
+  - A `policy_status` task is not pushed to `suspended_tasks`. It has no task slots and finishes in one lookup, so offering to "continue checking your status" would be noise.
+  - When a suspended task is restored on a different policy than the one now verified, the customer's DOB is cleared, because it belongs to the other policy. The agent asks: "To continue with policy POL-…, please confirm the date of birth on that policy." Verification and lookup then re-run.
+- **Why:** FR11 requires re-verification and a fresh lookup on resume. The DOB on file can't verify a different policy.
+
+### D-036 Merge rules
+- **Decision:**
+  - A newly given `policy_id` that differs from the current one is treated as a correction (FR21) even without explicit correction wording. Other slots are overwritten only when `is_correction` is set (FR12).
+  - Every held value is re-validated on each `validate_slots` run, so restored tasks are re-checked like newly extracted values (FR10/FR11) and a stale effective date that is now in the past is caught.
+  - Candidates are merged once per turn: the annotation is marked `merged`.
+- **Why:** This follows FR12 and FR21. Merging once per turn prevents a correction from re-invalidating a verification that has just succeeded.
+
+### D-037 Optional slots are "asked once"
+- **Decision:** After an optional slot (damage estimate, police report) has been asked once, a reply that doesn't provide it, or a skip word, records it as an explicit `null` in `slots_skipped` (FR16). A skipped damage estimate later triggers the `damage_estimate_unknown` approval (FR32).
+- **Why:** FR16 says optional slots are asked once. Re-asking until the customer says "skip" would contradict it.
+
+### D-038 Verification counters and messages
+- **Decision:**
+  - `verification_attempts` counts **failed** verifications. The FR20a test requires `== 1` after one failure followed by a success.
+  - At `MAX_VERIFICATION_ATTEMPTS`, `escalate` sets `status = locked`, and every later message in that thread gets the locked message.
+  - The FR20 message is shown once, followed by the identity question.
+- **Why:** This matches FR19, FR20 and FR20a exactly.
+
+### D-039 Conversational wording
+- **Decision:**
+  - The thread's first agent reply starts with "Hi, I'm the Acme Mutual support assistant." (FR5).
+  - The first question of a task gets an intent-specific lead-in ("I'm sorry to hear that. I'll help you report a claim.").
+  - After a successful verification, the next question starts with "Thanks, you're verified." (Flow B).
+  - Smalltalk and out-of-scope replies mid-task repeat the pending question and carry its `asked_slots`, so the customer's next answer is still attributed correctly.
+- **Why:** This follows the PRD flows, and the pending task survives off-topic turns (FR5a).
+
+### D-040 Fallback and clarification behavior (FR7, FR48)
+- **Decision:**
+  - If the LLM fails, `understand` uses `rule_understand(strict=True)`: keyword intents, the policy-number regex and the date extractor.
+  - If even the rules recognize nothing, `clarify` sends the system-unavailable message (FR48 "cannot proceed").
+  - A non-bare reply to a yes/no question without the LLM is treated as `unrelated`.
+  - Low-confidence clarifications are counted in `clarification_attempts["_intent"]`, and after 3 the thread escalates (§9.1).
+  - Coverage/payment questions ("will I be covered?") are detected deterministically and always get the FR51 template, whatever the LLM says.
+- **Why:** These are deterministic fail-safes on the LLM's output.
+
+### D-041 Redaction also covers the code-built context block
+- **Context:** A test in this milestone found the raw DOB in the system prompt: the deterministic `date_mentions` list included the DOB's ISO value.
+- **Decision:** Mentions that are, or could be, the DOB appear in the context as `"[DOB]"`. The test asserts that no supported DOB format (ISO, US numeric, month name) appears anywhere in any fake-LLM request.
+- **Why:** NFR8a applies to everything sent to the vendor, not just to customer messages.
+
+### D-042 Invalid policy-number feedback for bare numbers
+- **Decision:** When the agent asked for a policy number and the reply contains a bare 3–10 digit number (like "12345"), that number is validated as a `policy_id` candidate. It fails, and the customer gets "Policy numbers look like POL-123456. Could you check yours?" (§9.1).
+- **Why:** The §9.1 example is a bare "12345".
+
+### D-043 Flow H is tested in two parts
+- **Context:** Flow H continues from a completed Flow B claim. Claim submission arrives in M4.
+- **Decision:** M3 tests the same mechanics with status → cancellation: identity is carried over and only the date and reason are asked. M4 adds the full Flow B → cancellation test.
+- **Why:** The milestone order puts writes after understanding.

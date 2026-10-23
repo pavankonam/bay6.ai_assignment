@@ -7,6 +7,9 @@ from collections.abc import Callable, Mapping
 from datetime import date
 from typing import Any
 
+from app.config import today
+from app.validation.extractors import dob_spans
+
 DOB_PLACEHOLDER = "[DOB]"
 
 
@@ -39,12 +42,26 @@ def redact_known_dob(text: str, dob: date | None) -> str:
     return text
 
 
-def redactor_for(state: Mapping[str, Any]) -> Callable[[str], str]:
-    """A redactor bound to the DOB known in `state` (if any)."""
+def redact_dob(text: str, known_dob: date | None = None) -> str:
+    """Replace every span the deterministic extractor recognizes as a DOB, plus any rendering of
+    the known DOB, with `[DOB]` (NFR8a)."""
+    if not text:
+        return text
+    spans = dob_spans(text, today(), known_dob)
+    for start, end in sorted(spans, reverse=True):
+        text = text[:start] + DOB_PLACEHOLDER + text[end:]
+    return redact_known_dob(text, known_dob)
+
+
+def redactor_for(state: Mapping[str, Any], extra_dob: date | None = None) -> Callable[[str], str]:
+    """A redactor bound to the DOB known in `state` (or just extracted this turn)."""
     raw = (state.get("slots") or {}).get("dob")
-    known = date.fromisoformat(raw) if isinstance(raw, str) else None
+    known = date.fromisoformat(raw) if isinstance(raw, str) else extra_dob
 
     def redact(text: str) -> str:
-        return redact_known_dob(text, known)
+        redacted = redact_dob(text, known)
+        if extra_dob is not None and extra_dob != known:
+            redacted = redact_known_dob(redacted, extra_dob)
+        return redacted
 
     return redact

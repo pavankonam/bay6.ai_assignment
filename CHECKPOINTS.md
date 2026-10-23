@@ -12,7 +12,7 @@ Each milestone commit is tagged `checkpoint_mN`. A commit cannot contain its own
 | M0: Scaffold | ✅ Passed | 15 / 15 | 98.0% / 98.0% | `7d9ce56` | `checkpoint_m0` |
 | M1: Mock backend + tools | ✅ Passed | 80 / 80 | 97.7% / 97.7% | `c9cbbb1` | `checkpoint_m1` |
 | M2: State + graph skeleton | ✅ Passed | 276 / 276 | 96.2% / 96.2% | `c723f01` | `checkpoint_m2` |
-| M3: Understanding + slots + verification | ⏳ Not started | | | | |
+| M3: Understanding + slots + verification | ✅ Passed | 491 / 491 | 92.1% / 92.1% | _pending_ | `checkpoint_m3` |
 | M4: Claim + cancellation + confirmation | ⏳ Not started | | | | |
 | M5: Human-in-the-loop | ⏳ Not started | | | | |
 | M6: Error handling + responses | ⏳ Not started | | | | |
@@ -51,3 +51,19 @@ Each milestone commit is tagged `checkpoint_mN`. A commit cannot contain its own
   - **Other tests:** the LLM gateway (repair, fallback, cap, tokens, redaction).
   - **Draw:** `support graph draw` writes `docs/graph.md`.
   - Nodes beyond `ingest`, `plan_tool` and `validate_tool_call` are still stubs at this checkpoint, as the milestone specifies.
+
+## M3: Understanding + slot filling + verification
+- **Exit criteria (PRD §12):** Flows A, A2, E and H pass with the fake LLM; the consecutive-task, multi-date, year-boundary and re-verification tests pass.
+- **Result:**
+  - **Integration tests** (`tests/integration/test_understanding_flows.py`):
+    - Flow A, with NFR2 call counts in both modes; Flow A2 makes zero tool calls on its first turn.
+    - Flow E: resume yes/no/unrelated.
+    - Flow H: status → cancel reuses the identity (the full Flow B → cancel version is in M4).
+    - Two consecutive tasks; no slot leaks after a terminal outcome; smalltalk and out-of-scope messages mid-claim keep the slots.
+    - A multi-date message; ambiguity clarification with carry-over; a yearless DOB; Dec/Jan boundaries for incident and effective dates.
+    - Verification: wrong → correct DOB (attempts == 1); lockout at 3; FR21/FR11 switch after lookup with a policy change, then resume (re-verify + fresh lookup).
+    - Escalation: low-confidence → escalate; max-clarification escalation; handoff anywhere and at a pending question.
+    - FR51 coverage template; turn limit.
+    - LLM: FR48 timeout fallback, repair-then-fallback, the per-thread call cap.
+    - Data: no raw DOB in any LLM payload; no DOB or name in the lookup.
+  - **Unit tests:** the extractor (every relative phrase, formats, roles, ambiguity, two-digit and missing years), validators, the FR29a matrix, the FR5a lifecycle, the rules and bare-reply lists, and redaction.
