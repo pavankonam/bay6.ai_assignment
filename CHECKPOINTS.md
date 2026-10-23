@@ -9,7 +9,7 @@ Each milestone commit is tagged `checkpoint_mN`. A commit cannot contain its own
 
 | Milestone | Status | Tests passed (llm / deterministic) | Coverage (llm / det) | Commit | Tag |
 |---|---|---|---|---|---|
-| M0: Scaffold | ✅ Passed | 15 / 15 | 98.0% / 98.0% | _pending_ | `checkpoint_m0` |
+| M0: Scaffold | ✅ Passed | 15 / 15 | 98.0% / 98.0% | `7d9ce56` | `checkpoint_m0` |
 | M1: Mock backend + tools | ⏳ Not started | | | | |
 | M2: State + graph skeleton | ⏳ Not started | | | | |
 | M3: Understanding + slots + verification | ⏳ Not started | | | | |
