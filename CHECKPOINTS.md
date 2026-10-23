@@ -16,7 +16,7 @@ Each milestone commit is tagged `checkpoint_mN`. A commit cannot contain its own
 | M4: Claim + cancellation + confirmation | ✅ Passed | 549 / 549 | 94.0% / 94.0% | `ef6ce0e` | `checkpoint_m4` |
 | M5: Human-in-the-loop | ✅ Passed | 574 / 574 | 94.7% / 94.7% | `4dfd866` | `checkpoint_m5` |
 | M6: Error handling + responses | ✅ Passed | 630 / 630 | 96.3% / 96.3% | `85bfbfb` | `checkpoint_m6` |
-| M7: API + CLI | ✅ Passed | 656 / 656 | 96.3% / 96.3% | _pending_ | `checkpoint_m7` |
+| M7: API + CLI | ✅ Passed | 656 / 656 | 96.3% / 96.3% | `c9d8bd7` | `checkpoint_m7` |
 | M8: Docs (core sign-off) | ⏳ Not started | | | | |
 | M9: Hardening | ⏳ Not started | | | | |
 | M10: Evaluation | ⏳ Not started | | | | |
